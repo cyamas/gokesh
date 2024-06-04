@@ -27,6 +27,17 @@ type King struct {
 	Moved  bool
 }
 
+var KING_DIRS = map[string][2]int{
+	"N":  {-1, 0},
+	"E":  {0, 1},
+	"S":  {1, 0},
+	"W":  {0, -1},
+	"NW": {-1, -1},
+	"NE": {-1, 1},
+	"SE": {1, 1},
+	"SW": {1, -1},
+}
+
 func (k *King) Type() string             { return KING }
 func (k *King) Value() int               { return k.value }
 func (k *King) SetColor(color string)    { k.color = color }
@@ -38,23 +49,7 @@ func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 	actives := make(map[*Square]SqActivity)
 	unsafes := board.GetAttackedSquares(k.color)
 
-	if !k.Moved && !k.IsInCheck(unsafes) {
-		k.checkForShortCastle(board, unsafes, actives)
-		k.checkForLongCastle(board, unsafes, actives)
-	}
-
-	dirs := map[string][2]int{
-		"N":  {-1, 0},
-		"E":  {0, 1},
-		"S":  {1, 0},
-		"W":  {0, -1},
-		"NW": {-1, -1},
-		"NE": {-1, 1},
-		"SE": {1, 1},
-		"SW": {1, -1},
-	}
-
-	for _, coords := range dirs {
+	for _, coords := range KING_DIRS {
 		candRow := k.square.Row + coords[0]
 		candCol := k.square.Column + coords[1]
 
@@ -63,7 +58,7 @@ func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 			if cand.Piece.Type() != NULL && cand.Piece.Color() == k.color {
 				continue
 			}
-			if board.SquareIsSafe(k.color, cand) {
+			if !unsafes[cand] {
 				if cand.Piece.Type() == NULL {
 					actives[cand] = FREE
 				} else {
@@ -71,6 +66,11 @@ func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 				}
 			}
 		}
+	}
+
+	if !k.Moved && !k.IsInCheck(unsafes) {
+		k.checkForShortCastle(board, unsafes, actives)
+		k.checkForLongCastle(board, unsafes, actives)
 	}
 
 	return actives
@@ -338,7 +338,6 @@ func (p *Pawn) addFreeMoves(board *Board, actives map[*Square]SqActivity) {
 	cand := getCandidateSquare(board, freeRow, freeCol)
 	if cand.Piece.Type() == NULL {
 		actives[cand] = FREE
-
 		if !p.Moved {
 			dblRow := p.freeMoveRow(2)
 			dblCand := getCandidateSquare(board, dblRow, freeCol)

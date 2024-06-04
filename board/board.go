@@ -114,6 +114,14 @@ func (b *Board) GetAttackedSquares(color string) map[*Square]bool {
 	actives := make(map[*Square]bool)
 	for piece := range enemies {
 		if piece.Type() == KING {
+			for _, dir := range KING_DIRS {
+				row := piece.Square().Row + dir[0]
+				col := piece.Square().Column + dir[1]
+				if squareExists(row, col) {
+					guardedSq := getCandidateSquare(b, row, col)
+					actives[guardedSq] = true
+				}
+			}
 			continue
 		}
 		pieceActives := piece.ActiveSquares(b)
@@ -133,67 +141,10 @@ func (b *Board) SetPiece(piece Piece, square *Square) {
 	piece.SetSquare(square)
 	square.SetPiece(piece)
 	if piece.Color() == WHITE {
-		_, ok := b.WhitePieces[piece]
-		if !ok {
-			b.WhitePieces[piece] = true
-		}
-
+		b.WhitePieces[piece] = true
 	} else {
-		_, ok := b.BlackPieces[piece]
-		if !ok {
-			b.BlackPieces[piece] = true
-		}
+		b.BlackPieces[piece] = true
 	}
-}
-
-func (b *Board) SquareIsSafe(color string, cand *Square) bool {
-	var enemies map[Piece]bool
-	if color == WHITE {
-		enemies = b.BlackPieces
-	} else {
-		enemies = b.WhitePieces
-	}
-
-	for piece := range enemies {
-		if piece.Type() == KING {
-			if b.squareGuardedByEnemyKing(piece, cand) {
-				return false
-			}
-		} else {
-			valids := piece.ActiveSquares(b)
-			moveType, ok := valids[cand]
-			if ok {
-				if piece.Type() == PAWN && moveType == FREE {
-					continue
-				} else {
-					return false
-				}
-			}
-		}
-	}
-
-	return true
-}
-
-func (b *Board) squareGuardedByEnemyKing(king Piece, cand *Square) bool {
-	dirs := map[string][2]int{
-		"N":  {-1, 0},
-		"E":  {0, 1},
-		"S":  {1, 0},
-		"W":  {0, -1},
-		"NW": {-1, -1},
-		"NE": {-1, 1},
-		"SE": {1, 1},
-		"SW": {1, -1},
-	}
-	for _, coords := range dirs {
-		row := king.Square().Row + coords[0]
-		col := king.Square().Column + coords[1]
-		if squareExists(row, col) && b.Squares[row][col] == cand {
-			return true
-		}
-	}
-	return false
 }
 
 func (b *Board) SetupPieces() {
@@ -299,23 +250,21 @@ func (b *Board) Move(move *Move) (string, *game.Error) {
 }
 
 func (b *Board) executeFreeMove(move *Move) string {
-	move.Piece.SetSquare(move.To)
-	move.To.SetPiece(move.Piece)
-	move.From.SetPiece(&Null{})
-	b.Moves = append(b.Moves, move)
-	receipt := fmt.Sprintf("%s: %s -> %s", move.Piece.Type(), move.From.Name, move.Piece.Square().Name)
+	receipt := fmt.Sprintf("%s: %s -> %s", move.Piece.Type(), move.From.Name, move.To.Name)
 
-	return receipt
+	if move.Piece.Type() == PAWN && (move.To.Row == ROW_8 || move.To.Row == ROW_1) {
+		return b.executePawnPromotion(move, receipt)
+	} else {
+		b.SetPiece(move.Piece, move.To)
+		move.From.SetPiece(&Null{})
+		b.Moves = append(b.Moves, move)
+
+		return receipt
+	}
 }
 
 func (b *Board) executeCaptureMove(move *Move) string {
 	capturedPiece := move.To.Piece
-	b.removePiece(capturedPiece)
-
-	move.To.SetPiece(move.Piece)
-	move.From.SetPiece(&Null{})
-	move.Piece.SetSquare(move.To)
-	b.Moves = append(b.Moves, move)
 
 	receipt := fmt.Sprintf(
 		"%s TAKES %s: %s -> %s",
@@ -324,7 +273,30 @@ func (b *Board) executeCaptureMove(move *Move) string {
 		move.From.Name,
 		move.To.Name,
 	)
+
+	if move.Piece.Type() == PAWN && (move.To.Row == ROW_8 || move.To.Row == ROW_1) {
+		return b.executePawnPromotion(move, receipt)
+
+	} else {
+		b.SetPiece(move.Piece, move.To)
+		b.removePiece(move.From.Piece)
+		move.From.SetPiece(&Null{})
+		b.Moves = append(b.Moves, move)
+
+		return receipt
+	}
+
+}
+
+func (b *Board) executePawnPromotion(move *Move, receipt string) string {
+	b.SetPiece(move.Promotion, move.To)
+	move.From.SetPiece(&Null{})
+	b.removePiece(move.From.Piece)
+	b.Moves = append(b.Moves, move)
+
+	receipt += fmt.Sprintf(" (PROMOTION: %s)", move.Promotion.Type())
 	return receipt
+
 }
 
 func (b *Board) executeEnPassantMove(move *Move) string {

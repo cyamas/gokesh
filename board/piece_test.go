@@ -4,6 +4,95 @@ import (
 	"testing"
 )
 
+func TestPawnPromotion(t *testing.T) {
+	board := New()
+
+	c7 := board.Squares[ROW_7][COL_C]
+	e7 := board.Squares[ROW_7][COL_E]
+	d2 := board.Squares[ROW_2][COL_D]
+	f2 := board.Squares[ROW_2][COL_F]
+	b8 := board.Squares[ROW_8][COL_B]
+	g1 := board.Squares[ROW_1][COL_G]
+
+	whiteEPawn := &Pawn{color: WHITE, Moved: true}
+	whiteCPawn := &Pawn{color: WHITE, Moved: true}
+	blackDPawn := &Pawn{color: BLACK, Moved: true}
+	blackFPawn := &Pawn{color: BLACK, Moved: true}
+	blackQueen := &Queen{color: BLACK}
+	whiteBishop := &Bishop{color: WHITE}
+
+	board.SetPiece(whiteEPawn, e7)
+	board.SetPiece(whiteCPawn, c7)
+	board.SetPiece(blackDPawn, d2)
+	board.SetPiece(blackFPawn, f2)
+	board.SetPiece(blackQueen, b8)
+	board.SetPiece(whiteBishop, g1)
+
+	tests := []struct {
+		input             *Move
+		expectedReceipt   string
+		expectedPromotion string
+	}{
+		{
+			&Move{
+				Piece:     whiteEPawn,
+				From:      e7,
+				To:        board.Squares[ROW_8][COL_E],
+				Promotion: &Queen{color: WHITE},
+			},
+			"PAWN: E7 -> E8 (PROMOTION: QUEEN)",
+			QUEEN,
+		},
+		{
+			&Move{
+				Piece:     blackDPawn,
+				From:      d2,
+				To:        board.Squares[ROW_1][COL_D],
+				Promotion: &Knight{color: BLACK},
+			},
+			"PAWN: D2 -> D1 (PROMOTION: KNIGHT)",
+			KNIGHT,
+		},
+		{
+			&Move{
+				Piece:     whiteCPawn,
+				From:      c7,
+				To:        b8,
+				Promotion: &Bishop{color: WHITE},
+			},
+			"PAWN TAKES QUEEN: C7 -> B8 (PROMOTION: BISHOP)",
+			BISHOP,
+		},
+		{
+			&Move{
+				Piece:     blackFPawn,
+				From:      f2,
+				To:        g1,
+				Promotion: &Rook{color: BLACK},
+			},
+			"PAWN TAKES BISHOP: F2 -> G1 (PROMOTION: ROOK)",
+			ROOK,
+		},
+	}
+
+	for _, tt := range tests {
+		receipt, err := board.Move(tt.input)
+		if err != nil {
+			t.Fatalf("Test case should not return error")
+		}
+		if receipt != tt.expectedReceipt {
+			t.Fatalf("Receipt should be '%s'. Got '%s'", tt.expectedReceipt, receipt)
+		}
+		if tt.input.From.Piece.Type() != NULL {
+			t.Fatalf("Square %s should be NULL. Got %s", tt.input.From.Name, tt.input.From.Piece.Type())
+		}
+		if tt.input.To.Piece.Type() != tt.expectedPromotion {
+			t.Fatalf("Square %s should now have Queen. Got %s", tt.input.To.Name, tt.input.To.Piece.Type())
+		}
+	}
+
+}
+
 func TestCastle(t *testing.T) {
 	shortBoard := New()
 	shortBlackSq := shortBoard.Squares[ROW_8][COL_G]

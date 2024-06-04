@@ -11,10 +11,11 @@ const (
 type SqActivity string
 
 type Move struct {
-	Type  SqActivity
-	Piece Piece
-	From  *Square
-	To    *Square
+	Type      SqActivity
+	Piece     Piece
+	From      *Square
+	To        *Square
+	Promotion Piece
 }
 
 func (m *Move) IsValid(board *Board) bool {
