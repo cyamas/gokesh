@@ -68,10 +68,12 @@ var blackStartSquares = map[string]Piece{
 }
 
 type Board struct {
-	Squares     [][]*Square
-	Moves       []*Move
-	WhitePieces map[Piece]bool
-	BlackPieces map[Piece]bool
+	Squares      [][]*Square
+	Moves        []*Move
+	WhitePieces  map[Piece]bool
+	BlackPieces  map[Piece]bool
+	WhiteInCheck []Piece
+	BlackInCheck []Piece
 }
 
 func New() *Board {
@@ -102,7 +104,7 @@ func New() *Board {
 	return board
 }
 
-func (b *Board) GetAttackedSquares(color string) map[*Square]bool {
+func (b *Board) GetAttackedSquares(color string) map[*Square][]Piece {
 	var enemies map[Piece]bool
 
 	if color == WHITE {
@@ -111,7 +113,7 @@ func (b *Board) GetAttackedSquares(color string) map[*Square]bool {
 		enemies = b.WhitePieces
 	}
 
-	actives := make(map[*Square]bool)
+	attackedSqs := make(map[*Square][]Piece)
 	for piece := range enemies {
 		if piece.Type() == KING {
 			for _, dir := range KING_DIRS {
@@ -119,22 +121,115 @@ func (b *Board) GetAttackedSquares(color string) map[*Square]bool {
 				col := piece.Square().Column + dir[1]
 				if squareExists(row, col) {
 					guardedSq := getCandidateSquare(b, row, col)
-					actives[guardedSq] = true
+					addAttackedSquare(guardedSq, piece, attackedSqs)
 				}
 			}
 			continue
 		}
 		pieceActives := piece.ActiveSquares(b)
 		for sq, sqActivity := range pieceActives {
-			if _, ok := actives[sq]; !ok {
+			if _, ok := attackedSqs[sq]; !ok {
 				if piece.Type() == PAWN && sqActivity == FREE {
 					continue
 				}
-				actives[sq] = true
+			}
+			addAttackedSquare(sq, piece, attackedSqs)
+		}
+	}
+	return attackedSqs
+}
+
+func addAttackedSquare(sq *Square, piece Piece, attackeds map[*Square][]Piece) {
+	_, ok := attackeds[sq]
+	if ok {
+		attackeds[sq] = append(attackeds[sq], piece)
+	} else {
+		attackeds[sq] = []Piece{piece}
+	}
+}
+
+func (b *Board) GetAttackedPath(from, to *Square) map[*Square]bool {
+	bigRow, smallRow := sortCoords(from.Row, to.Row)
+	bigCol, smallCol := sortCoords(from.Column, to.Column)
+	switch {
+	case from.Row == to.Row:
+		return b.horizontalPath(bigCol, smallCol, bigRow)
+	case from.Column == to.Column:
+		return b.verticalPath(bigRow, smallRow, bigCol)
+	default:
+		return b.diagonalPath(from, to)
+	}
+}
+
+func (b *Board) horizontalPath(bigCol, smallCol, row int) map[*Square]bool {
+	path := make(map[*Square]bool)
+
+	for col := smallCol + 1; col < bigCol; col++ {
+		sq := b.Squares[row][col]
+		path[sq] = true
+	}
+	return path
+}
+
+func (b *Board) verticalPath(bigRow, smallRow, col int) map[*Square]bool {
+	path := make(map[*Square]bool)
+
+	for row := smallRow + 1; row < bigRow; row++ {
+		sq := b.Squares[row][col]
+		path[sq] = true
+	}
+	return path
+}
+
+func (b *Board) diagonalPath(from, to *Square) map[*Square]bool {
+	path := make(map[*Square]bool)
+
+	rows := orderCoords(from.Row, to.Row)
+	cols := orderCoords(from.Column, to.Column)
+	for i := range len(rows) {
+		sq := b.Squares[rows[i]][cols[i]]
+		path[sq] = true
+	}
+
+	return path
+}
+
+func orderCoords(from, to int) []int {
+	var coords []int
+	if from-to < 0 {
+		for coord := from + 1; coord < to; coord++ {
+			coords = append(coords, coord)
+		}
+	} else {
+		for coord := from - 1; coord > to; coord-- {
+			coords = append(coords, coord)
+		}
+	}
+	return coords
+}
+
+func sortCoords(a, b int) (int, int) {
+	if a > b {
+		return a, b
+	} else {
+		return b, a
+	}
+}
+
+func (b *Board) GetKing(color string) *King {
+	if color == WHITE {
+		for piece := range b.WhitePieces {
+			if piece.Type() == KING {
+				return piece.(*King)
 			}
 		}
 	}
-	return actives
+	for piece := range b.BlackPieces {
+		if piece.Type() == KING {
+			return piece.(*King)
+		}
+	}
+	return nil
 }
 
 func (b *Board) SetPiece(piece Piece, square *Square) {
@@ -218,7 +313,7 @@ func (b *Board) SetupPieces() {
 
 }
 
-func (b *Board) Move(move *Move) (string, *game.Error) {
+func (b *Board) MovePiece(move *Move) (string, *game.Error) {
 	if move.IsValid(b) {
 		switch piece := move.Piece.(type) {
 		case *Pawn:

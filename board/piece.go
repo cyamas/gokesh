@@ -48,6 +48,7 @@ func (k *King) Square() *Square          { return k.square }
 func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 	actives := make(map[*Square]SqActivity)
 	unsafes := board.GetAttackedSquares(k.color)
+	checked, _ := k.IsInCheck(unsafes)
 
 	for _, coords := range KING_DIRS {
 		candRow := k.square.Row + coords[0]
@@ -58,7 +59,8 @@ func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 			if cand.Piece.Type() != NULL && cand.Piece.Color() == k.color {
 				continue
 			}
-			if !unsafes[cand] {
+			_, ok := unsafes[cand]
+			if !ok {
 				if cand.Piece.Type() == NULL {
 					actives[cand] = FREE
 				} else {
@@ -68,7 +70,7 @@ func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 		}
 	}
 
-	if !k.Moved && !k.IsInCheck(unsafes) {
+	if !k.Moved && !checked {
 		k.checkForShortCastle(board, unsafes, actives)
 		k.checkForLongCastle(board, unsafes, actives)
 	}
@@ -76,7 +78,7 @@ func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 	return actives
 }
 
-func (k *King) checkForShortCastle(board *Board, unsafes map[*Square]bool, actives map[*Square]SqActivity) {
+func (k *King) checkForShortCastle(board *Board, unsafes map[*Square][]Piece, actives map[*Square]SqActivity) {
 	var hSquare *Square
 	var gSquare *Square
 	var fSquare *Square
@@ -99,7 +101,7 @@ func (k *King) checkForShortCastle(board *Board, unsafes map[*Square]bool, activ
 	}
 }
 
-func (k *King) checkForLongCastle(board *Board, unsafes map[*Square]bool, actives map[*Square]SqActivity) {
+func (k *King) checkForLongCastle(board *Board, unsafes map[*Square][]Piece, actives map[*Square]SqActivity) {
 	var dSquare *Square
 	var cSquare *Square
 	var aSquare *Square
@@ -134,12 +136,12 @@ func rookCanCastle(square *Square) bool {
 	return true
 }
 
-func (k *King) IsInCheck(attackedSquares map[*Square]bool) bool {
-	_, ok := attackedSquares[k.square]
+func (k *King) IsInCheck(attackedSquares map[*Square][]Piece) (bool, []Piece) {
+	checkingPieces, ok := attackedSquares[k.square]
 	if ok {
-		return true
+		return true, checkingPieces
 	}
-	return false
+	return false, nil
 }
 
 type Queen struct {
@@ -292,6 +294,7 @@ func (p *Pawn) ActiveSquares(board *Board) map[*Square]SqActivity {
 	if ok {
 		actives[enPassantSq] = EN_PASSANT
 	}
+
 	return actives
 }
 
@@ -307,7 +310,7 @@ func (p *Pawn) checkEnPassant(board *Board) (*Square, bool) {
 				return nil, false
 			}
 			if lastMove.From.Row == ROW_7 && lastMove.To.Row == ROW_5 {
-				if calcColumnDiff(lastMove.To.Column, p.square.Column) == 1 {
+				if calcOffset(lastMove.To.Column, p.square.Column) == 1 {
 					epRow := p.square.Row - 1
 					epCol := lastMove.To.Column
 					epSquare := board.Squares[epRow][epCol]
@@ -319,7 +322,7 @@ func (p *Pawn) checkEnPassant(board *Board) (*Square, bool) {
 				return nil, false
 			}
 			if lastMove.From.Row == ROW_2 && lastMove.To.Row == ROW_4 {
-				if calcColumnDiff(lastMove.To.Column, p.square.Column) == 1 {
+				if calcOffset(lastMove.To.Column, p.square.Column) == 1 {
 					epRow := p.square.Row + 1
 					epCol := lastMove.To.Column
 					epSquare := board.Squares[epRow][epCol]
@@ -434,8 +437,8 @@ func squareExists(row int, col int) bool {
 	return 0 <= row && row <= 7 && 0 <= col && col <= 7
 }
 
-func calcColumnDiff(col1 int, col2 int) int {
-	diff := col1 - col2
+func calcOffset(x int, y int) int {
+	diff := x - y
 	if diff < 0 {
 		return -diff
 	} else {
