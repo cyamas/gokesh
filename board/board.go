@@ -67,6 +67,28 @@ var blackStartSquares = map[string]Piece{
 	"E8": &King{},
 }
 
+type Square struct {
+	Piece  Piece
+	Row    int
+	Column int
+	Name   string
+}
+
+func (s *Square) SetPiece(piece Piece) {
+	s.Piece = piece
+}
+
+func (s *Square) IsEmpty() bool {
+	if s.Piece.Type() == NULL {
+		return true
+	}
+	return false
+}
+
+func (b *Board) getSquare(row, col int) *Square {
+	return b.Squares[row][col]
+}
+
 type Board struct {
 	Squares      [][]*Square
 	Moves        []*Move
@@ -104,6 +126,59 @@ func New() *Board {
 	return board
 }
 
+func (b *Board) CheckmateDetected(color string, king *King) bool {
+	attackedSqs := b.GetAttackedSquares(color)
+	checked, checkers := king.IsInCheck(attackedSqs)
+	if !checked {
+		return false
+	}
+
+	kingActives := king.ActiveSquares(b)
+
+	switch {
+	case len(kingActives) == 0 && len(checkers) > 1:
+		return true
+	case len(kingActives) > 0 && king.CanEvadeCheck(kingActives, b):
+		return false
+	default:
+		return !b.piecePreventsCheckmate(king, color, checkers)
+	}
+}
+
+func (b *Board) piecePreventsCheckmate(king *King, color string, checkers []Piece) bool {
+	allies := b.getAllies(color)
+	for piece := range allies {
+		if piece.Type() == KING {
+			continue
+		}
+
+		pieceActives := piece.ActiveSquares(b)
+		for sq := range pieceActives {
+			candMove := &Move{Piece: piece, From: piece.Square(), To: sq}
+			if candMove.stopsCheck(king, checkers, b) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (b *Board) getAllies(color string) map[Piece]bool {
+	if color == WHITE {
+		return b.WhitePieces
+	} else {
+		return b.BlackPieces
+	}
+}
+
+func (b *Board) getEnemies(color string) map[Piece]bool {
+	if color == WHITE {
+		return b.BlackPieces
+	} else {
+		return b.WhitePieces
+	}
+}
+
 func (b *Board) GetAttackedSquares(color string) map[*Square][]Piece {
 	var enemies map[Piece]bool
 
@@ -114,29 +189,35 @@ func (b *Board) GetAttackedSquares(color string) map[*Square][]Piece {
 	}
 
 	attackedSqs := make(map[*Square][]Piece)
+
 	for piece := range enemies {
-		if piece.Type() == KING {
-			for _, dir := range KING_DIRS {
-				row := piece.Square().Row + dir[0]
-				col := piece.Square().Column + dir[1]
-				if squareExists(row, col) {
-					guardedSq := getCandidateSquare(b, row, col)
-					addAttackedSquare(guardedSq, piece, attackedSqs)
-				}
-			}
+		if king, ok := piece.(*King); ok {
+			b.addKingAttackedSquares(king, attackedSqs)
 			continue
-		}
-		pieceActives := piece.ActiveSquares(b)
-		for sq, sqActivity := range pieceActives {
-			if _, ok := attackedSqs[sq]; !ok {
-				if piece.Type() == PAWN && sqActivity == FREE {
-					continue
+		} else {
+			pieceActives := piece.ActiveSquares(b)
+			for sq, sqActivity := range pieceActives {
+				if _, ok := attackedSqs[sq]; !ok {
+					if piece.Type() == PAWN && sqActivity == FREE {
+						continue
+					}
 				}
+				addAttackedSquare(sq, piece, attackedSqs)
 			}
-			addAttackedSquare(sq, piece, attackedSqs)
 		}
 	}
 	return attackedSqs
+}
+
+func (b *Board) addKingAttackedSquares(king *King, attackedSqs map[*Square][]Piece) {
+	for _, dir := range KING_DIRS {
+		row := king.Square().Row + dir[0]
+		col := king.Square().Column + dir[1]
+		if squareExists(row, col) {
+			kingGuardedSq := b.getSquare(row, col)
+			addAttackedSquare(kingGuardedSq, king, attackedSqs)
+		}
+	}
 }
 
 func addAttackedSquare(sq *Square, piece Piece, attackeds map[*Square][]Piece) {
@@ -149,8 +230,8 @@ func addAttackedSquare(sq *Square, piece Piece, attackeds map[*Square][]Piece) {
 }
 
 func (b *Board) GetAttackedPath(from, to *Square) map[*Square]bool {
-	bigRow, smallRow := sortCoords(from.Row, to.Row)
-	bigCol, smallCol := sortCoords(from.Column, to.Column)
+	bigRow, smallRow := compareCoords(from.Row, to.Row)
+	bigCol, smallCol := compareCoords(from.Column, to.Column)
 	switch {
 	case from.Row == to.Row:
 		return b.horizontalPath(bigCol, smallCol, bigRow)
@@ -208,7 +289,7 @@ func orderCoords(from, to int) []int {
 	return coords
 }
 
-func sortCoords(a, b int) (int, int) {
+func compareCoords(a, b int) (int, int) {
 	if a > b {
 		return a, b
 	} else {
@@ -466,22 +547,4 @@ func (b *Board) LastMove() *Move {
 		return b.Moves[len(b.Moves)-1]
 	}
 	return nil
-}
-
-type Square struct {
-	Piece  Piece
-	Row    int
-	Column int
-	Name   string
-}
-
-func (s *Square) SetPiece(piece Piece) {
-	s.Piece = piece
-}
-
-func (s *Square) IsEmpty() bool {
-	if s.Piece.Type() == NULL {
-		return true
-	}
-	return false
 }

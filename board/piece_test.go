@@ -4,6 +4,117 @@ import (
 	"testing"
 )
 
+func TestCheckmate(t *testing.T) {
+	board1 := New()
+
+	whiteKing1 := &King{color: WHITE}
+	d1 := board1.Squares[ROW_1][COL_D]
+
+	blackKing1 := &King{color: BLACK}
+	e8 := board1.Squares[ROW_8][COL_E]
+
+	blackQueen1 := &Queen{color: BLACK}
+	a1 := board1.Squares[ROW_1][COL_A]
+
+	blackRook1 := &Rook{color: BLACK}
+	b2 := board1.Squares[ROW_2][COL_B]
+
+	whiteBishop := &Bishop{color: WHITE}
+	e5 := board1.Squares[ROW_5][COL_E]
+
+	board1.SetPiece(whiteKing1, d1)
+	board1.SetPiece(blackKing1, e8)
+	board1.SetPiece(blackQueen1, a1)
+	board1.SetPiece(blackRook1, b2)
+	board1.SetPiece(whiteBishop, e5)
+
+	board2 := New()
+
+	whiteKing2 := &King{color: WHITE}
+	h1 := board2.Squares[ROW_1][COL_H]
+
+	whiteGPawn2 := &Pawn{color: WHITE}
+	g2 := board2.Squares[ROW_2][COL_G]
+
+	whiteHPawn2 := &Pawn{color: WHITE}
+	h2 := board2.Squares[ROW_2][COL_H]
+
+	blackQueen2 := &Queen{color: BLACK}
+	b1 := board2.Squares[ROW_1][COL_B]
+
+	whiteRook2 := &Rook{color: WHITE}
+	a6 := board2.Squares[ROW_6][COL_A]
+
+	blackKing2 := &King{color: BLACK}
+	a8 := board2.Squares[ROW_8][COL_A]
+
+	board2.SetPiece(whiteKing2, h1)
+	board2.SetPiece(blackKing2, a8)
+	board2.SetPiece(whiteGPawn2, g2)
+	board2.SetPiece(whiteHPawn2, h2)
+	board2.SetPiece(blackQueen2, b1)
+	board2.SetPiece(whiteRook2, a6)
+
+	board3 := New()
+
+	whiteKing3 := &King{color: WHITE}
+	f1 := board3.Squares[ROW_1][COL_F]
+
+	blackKing3 := &King{color: BLACK}
+	b8 := board3.Squares[ROW_8][COL_B]
+
+	whiteQueen3 := &Queen{color: WHITE}
+	b7 := board3.Squares[ROW_7][COL_B]
+
+	whiteKnight3 := &Knight{color: WHITE}
+	d6 := board3.Squares[ROW_6][COL_D]
+
+	blackKnight3 := &Knight{color: BLACK}
+	f4 := board3.Squares[ROW_4][COL_F]
+
+	blackRook3 := &Rook{color: BLACK}
+	c1 := board3.Squares[ROW_1][COL_C]
+
+	whitePawn3 := &Pawn{color: WHITE}
+	f2 := board3.Squares[ROW_2][COL_F]
+
+	whiteBishop3 := &Bishop{color: WHITE}
+	a3 := board3.Squares[ROW_3][COL_A]
+
+	board3.SetPiece(whiteKing3, f1)
+	board3.SetPiece(blackKing3, b8)
+	board3.SetPiece(whiteQueen3, b7)
+	board3.SetPiece(whiteKnight3, d6)
+	board3.SetPiece(blackKnight3, f4)
+	board3.SetPiece(blackRook3, c1)
+	board3.SetPiece(whitePawn3, f2)
+	board3.SetPiece(whiteBishop3, a3)
+
+	tests := []struct {
+		testKing *King
+		board    *Board
+		expected bool
+	}{
+		{blackKing1, board1, false},
+		{whiteKing1, board1, true},
+		{blackKing2, board2, false},
+		{whiteKing2, board2, true},
+		{blackKing3, board3, true},
+		{whiteKing3, board3, false},
+	}
+
+	for _, tt := range tests {
+		if tt.board.CheckmateDetected(tt.testKing.Color(), tt.testKing) != tt.expected {
+			t.Fatalf(
+				"%s KING on %s: Checkmate should be %t",
+				tt.testKing.color,
+				tt.testKing.Square().Name,
+				tt.expected,
+			)
+		}
+	}
+}
+
 func TestPieceBlocksCheck(t *testing.T) {
 	board1 := New()
 	board2 := New()

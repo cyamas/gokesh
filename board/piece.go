@@ -55,7 +55,7 @@ func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 		candCol := k.square.Column + coords[1]
 
 		if squareExists(candRow, candCol) {
-			cand := getCandidateSquare(board, candRow, candCol)
+			cand := board.getSquare(candRow, candCol)
 			if cand.Piece.Type() != NULL && cand.Piece.Color() == k.color {
 				continue
 			}
@@ -76,6 +76,19 @@ func (k *King) ActiveSquares(board *Board) map[*Square]SqActivity {
 	}
 
 	return actives
+}
+
+func (k *King) CanEvadeCheck(actives map[*Square]SqActivity, board *Board) bool {
+	kingSq := k.Square()
+	kingSq.SetPiece(&Null{})
+	attackedSqs := board.GetAttackedSquares(k.Color())
+	kingSq.SetPiece(k)
+	for sq := range actives {
+		if _, ok := attackedSqs[sq]; !ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (k *King) checkForShortCastle(board *Board, unsafes map[*Square][]Piece, actives map[*Square]SqActivity) {
@@ -260,7 +273,7 @@ func (kn *Knight) ActiveSquares(board *Board) map[*Square]SqActivity {
 				actives[cand] = FREE
 			case cand.Piece.Type() != NULL && cand.Piece.Color() != kn.color:
 				actives[cand] = CAPTURE
-			case cand.Piece.Type() != NULL && cand.Piece.Color() != kn.color:
+			case cand.Piece.Type() != NULL && cand.Piece.Color() == kn.color:
 				actives[cand] = GUARDED
 			}
 		}
@@ -338,12 +351,12 @@ func (p *Pawn) addFreeMoves(board *Board, actives map[*Square]SqActivity) {
 	freeCol := p.square.Column
 	freeRow := p.freeMoveRow(1)
 
-	cand := getCandidateSquare(board, freeRow, freeCol)
+	cand := board.getSquare(freeRow, freeCol)
 	if cand.Piece.Type() == NULL {
 		actives[cand] = FREE
 		if !p.Moved {
 			dblRow := p.freeMoveRow(2)
-			dblCand := getCandidateSquare(board, dblRow, freeCol)
+			dblCand := board.getSquare(dblRow, freeCol)
 			if dblCand.Piece.Type() == NULL {
 				actives[dblCand] = FREE
 			}
@@ -407,7 +420,7 @@ func (p *Pawn) captureColumns() (int, int) {
 
 func (p *Pawn) checkForValidCapture(board *Board, row, col int) (*Square, bool) {
 	if 0 <= col && col <= 7 {
-		cand := getCandidateSquare(board, row, col)
+		cand := board.getSquare(row, col)
 		if !cand.IsEmpty() && cand.Piece.Color() != p.color {
 			return cand, true
 		}
@@ -428,10 +441,6 @@ func (n *Null) Color() string                                     { return "NULL
 func (n *Null) SetSquare(square *Square)                          { n.square = square }
 func (n *Null) Square() *Square                                   { return n.square }
 func (n *Null) ActiveSquares(board *Board) map[*Square]SqActivity { return map[*Square]SqActivity{} }
-
-func getCandidateSquare(board *Board, row, col int) *Square {
-	return board.Squares[row][col]
-}
 
 func squareExists(row int, col int) bool {
 	return 0 <= row && row <= 7 && 0 <= col && col <= 7
@@ -454,7 +463,7 @@ func calcBRQActives(piece Piece, dirs map[string][2]int, board *Board) map[*Squa
 			candRow := piece.Square().Row + (coords[0] * dist)
 			candCol := piece.Square().Column + (coords[1] * dist)
 			if squareExists(candRow, candCol) {
-				cand := getCandidateSquare(board, candRow, candCol)
+				cand := board.getSquare(candRow, candCol)
 				switch {
 				case cand.Piece.Type() != NULL && cand.Piece.Color() == piece.Color():
 					actives[cand] = GUARDED
