@@ -1,7 +1,15 @@
 package main
 
-import "fmt"
+import (
+	"os"
+
+	"github.com/cyamas/gokesh/board"
+	"github.com/cyamas/gokesh/game"
+)
 
 func main() {
-	fmt.Println("This will hopefully be a chess engine one day!")
+	board := board.New()
+	board.SetupPieces()
+	game := game.New(board)
+	game.Run(os.Stdin, os.Stdout)
 }
