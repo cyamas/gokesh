@@ -142,6 +142,9 @@ func (g *Game) Run(in io.Reader, out io.Writer) {
 			fmt.Fprint(out, err.Message+"\n")
 			continue
 		}
+		if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
+			g.handlePawnPromotion(move, out, scanner)
+		}
 		receipt := g.ExecuteTurn(move)
 		fmt.Fprint(out, receipt+"\n")
 		if g.Board.Checkmate {
@@ -153,6 +156,10 @@ func (g *Game) Run(in io.Reader, out io.Writer) {
 func (g *Game) generateMove(msg string) (*board.Move, *Error) {
 
 	moveParts := strings.Split(msg, " ")
+	if len(moveParts) != 3 {
+		err := NewError("ERROR: INVALID INPUT. ENTER A VALID MOVE")
+		return nil, err
+	}
 
 	pieceStr := strings.TrimSpace(moveParts[0])
 	fromStr := strings.TrimSpace(moveParts[1])
@@ -173,7 +180,14 @@ func (g *Game) generateMove(msg string) (*board.Move, *Error) {
 		return nil, err
 	}
 
-	return &board.Move{Turn: g.Turn, Piece: piece, From: fromSq, To: toSq}, nil
+	move := &board.Move{
+		Turn:  g.Turn,
+		Piece: piece,
+		From:  fromSq,
+		To:    toSq,
+	}
+
+	return move, nil
 
 }
 
@@ -204,6 +218,44 @@ func (g *Game) nextTurn() {
 	} else {
 		g.Turn = WHITE
 	}
+}
+
+func (g *Game) handlePawnPromotion(move *board.Move, out io.Writer, scanner *bufio.Scanner) {
+	for {
+		promotePrompt := "PROMOTE TO: "
+		fmt.Fprint(out, promotePrompt)
+		scanned := scanner.Scan()
+		if !scanned {
+			continue
+		}
+		promoteMsg := scanner.Text()
+		switch promoteMsg {
+		case QUEEN:
+			queen := &board.Queen{}
+			queen.SetColor(g.Turn)
+			move.Promotion = queen
+			return
+		case ROOK:
+			rook := &board.Rook{}
+			rook.SetColor(g.Turn)
+			move.Promotion = rook
+			return
+		case BISHOP:
+			bishop := &board.Bishop{}
+			bishop.SetColor(g.Turn)
+			move.Promotion = bishop
+			return
+		case KNIGHT:
+			knight := &board.Knight{}
+			knight.SetColor(g.Turn)
+			move.Promotion = knight
+			return
+		default:
+			fmt.Println("ERROR: INVALID PIECE FOR PROMOTION")
+			continue
+		}
+	}
+
 }
 
 type Error struct {
