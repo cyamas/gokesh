@@ -208,6 +208,10 @@ func (g *Game) ExecuteTurn(move *board.Move) string {
 		return fmt.Sprintf("%s\nCHECKMATE: %s has won", receipt, g.Turn)
 	}
 
+	if g.Board.Check {
+		receipt += fmt.Sprintf("\n%s IN CHECK", ENEMY[g.Turn])
+	}
+
 	g.nextTurn()
 	return receipt
 }

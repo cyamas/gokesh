@@ -61,9 +61,8 @@ func (k *King) IsEnemy(color string) bool                 { return k.color != co
 
 func (k *King) SetActiveSquares(board *Board) {
 	actives := make(map[*Square]SqActivity)
+	checked, _ := k.IsInCheck(board)
 	unsafes := board.GetAttackedSquares(k.color)
-	checked, _ := k.IsInCheck(unsafes)
-
 	for _, coords := range KING_DIRS {
 		candRow := k.square.Row + coords[0]
 		candCol := k.square.Column + coords[1]
@@ -163,8 +162,9 @@ func rookCanCastle(square *Square) bool {
 	return true
 }
 
-func (k *King) IsInCheck(attackedSquares map[*Square][]Piece) (bool, []Piece) {
-	checkingPieces, ok := attackedSquares[k.square]
+func (k *King) IsInCheck(board *Board) (bool, []Piece) {
+	attackedSqs := board.GetAttackedSquares(k.color)
+	checkingPieces, ok := attackedSqs[k.square]
 	if ok {
 		return true, checkingPieces
 	}
@@ -384,9 +384,8 @@ func (p *Pawn) SetActiveSquares(board *Board) {
 	}
 
 	king := board.GetKing(p.color)
-	attackedSqs := board.GetAttackedSquares(p.color)
 
-	if isChecked, checkers := king.IsInCheck(attackedSqs); isChecked {
+	if isChecked, checkers := king.IsInCheck(board); isChecked {
 		p.activeSquares = board.filterActivesForStoppingCheck(actives, king, checkers)
 		return
 	}
@@ -601,8 +600,7 @@ func calcBRQActives(piece Piece, dirs map[string][2]int, board *Board) map[*Squa
 
 	color := piece.Color()
 	king := board.GetKing(color)
-	attackedSqs := board.GetAttackedSquares(color)
-	if checked, checkers := king.IsInCheck(attackedSqs); checked {
+	if checked, checkers := king.IsInCheck(board); checked {
 		if len(checkers) > 1 {
 			return map[*Square]SqActivity{}
 		}

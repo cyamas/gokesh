@@ -797,8 +797,7 @@ func TestKingInCheck(t *testing.T) {
 	}
 	for _, tt := range tests {
 		tt.board.Evaluate(tt.turn)
-		unsafes := tt.board.GetAttackedSquares(tt.input.color)
-		checked, checkingPieces := tt.input.IsInCheck(unsafes)
+		checked, checkingPieces := tt.input.IsInCheck(tt.board)
 		if checked != tt.expectedCheck {
 			t.Fatalf("King is in check should be %t (%s)", tt.expectedCheck, tt.input.Square().Name)
 		}

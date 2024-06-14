@@ -139,6 +139,8 @@ func (b *Board) Evaluate(turn string) {
 		b.evaluateWhite()
 		b.evaluateBlack()
 		king := b.GetKing(BLACK)
+		checked, _ := king.IsInCheck(b)
+		b.Check = checked
 		if b.CheckmateDetected(BLACK, king) {
 			b.Checkmate = true
 		}
@@ -146,6 +148,8 @@ func (b *Board) Evaluate(turn string) {
 		b.evaluateBlack()
 		b.evaluateWhite()
 		king := b.GetKing(WHITE)
+		checked, _ := king.IsInCheck(b)
+		b.Check = checked
 		if b.CheckmateDetected(WHITE, king) {
 			b.Checkmate = true
 		}
@@ -165,8 +169,7 @@ func (b *Board) evaluateWhite() {
 }
 
 func (b *Board) CheckmateDetected(color string, king *King) bool {
-	attackedSqs := b.GetAttackedSquares(color)
-	checked, checkers := king.IsInCheck(attackedSqs)
+	checked, checkers := king.IsInCheck(b)
 	if !checked {
 		return false
 	}
