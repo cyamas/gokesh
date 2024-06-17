@@ -27,6 +27,11 @@ const (
 	ROW_8 = 0
 )
 
+var ENEMY = map[string]string{
+	WHITE: BLACK,
+	BLACK: WHITE,
+}
+
 var whiteStartSquares = map[string]Piece{
 	"A2": &Pawn{},
 	"B2": &Pawn{},
@@ -82,6 +87,8 @@ type Square struct {
 	Name   string
 }
 
+type Path map[*Square]bool
+
 func (s *Square) SetPiece(piece Piece) {
 	s.Piece = piece
 }
@@ -104,6 +111,8 @@ type Board struct {
 	BlackPieces map[Piece]bool
 	Checkmate   bool
 	Check       bool
+	Checkers    []Piece
+	Value       float32
 }
 
 func New() *Board {
@@ -135,21 +144,24 @@ func New() *Board {
 }
 
 func (b *Board) Evaluate(turn string) {
+	b.Value = 0.0
 	if turn == WHITE {
 		b.evaluateWhite()
-		b.evaluateBlack()
 		king := b.GetKing(BLACK)
-		checked, _ := king.IsInCheck(b)
+		checked, checkers := king.IsInCheck(b)
 		b.Check = checked
+		b.Checkers = checkers
+		b.evaluateBlack()
 		if b.CheckmateDetected(BLACK, king) {
 			b.Checkmate = true
 		}
 	} else {
 		b.evaluateBlack()
-		b.evaluateWhite()
 		king := b.GetKing(WHITE)
-		checked, _ := king.IsInCheck(b)
+		checked, checkers := king.IsInCheck(b)
 		b.Check = checked
+		b.Checkers = checkers
+		b.evaluateWhite()
 		if b.CheckmateDetected(WHITE, king) {
 			b.Checkmate = true
 		}
@@ -159,13 +171,34 @@ func (b *Board) Evaluate(turn string) {
 func (b *Board) evaluateBlack() {
 	for piece := range b.BlackPieces {
 		piece.SetActiveSquares(b)
+		b.Value += piece.Value()
 	}
 }
 
 func (b *Board) evaluateWhite() {
 	for piece := range b.WhitePieces {
 		piece.SetActiveSquares(b)
+		b.Value += piece.Value()
 	}
+}
+
+func (b *Board) GetAllValidMoves(color string) []*Move {
+	moves := []*Move{}
+	pieces := b.getAllies(color)
+	for piece := range pieces {
+		for sq, activity := range piece.ActiveSquares() {
+			if activity == CAPTURE || activity == FREE {
+				move := &Move{
+					Turn:  color,
+					Piece: piece,
+					From:  piece.Square(),
+					To:    sq,
+				}
+				moves = append(moves, move)
+			}
+		}
+	}
+	return moves
 }
 
 func (b *Board) CheckmateDetected(color string, king *King) bool {
@@ -268,6 +301,9 @@ func addAttackedSquare(sq *Square, piece Piece, attackeds map[*Square][]Piece) {
 }
 
 func (b *Board) GetAttackedPath(from, to *Square) map[*Square]bool {
+	if from.Piece.Type() == KNIGHT {
+		return map[*Square]bool{from: true}
+	}
 	bigRow, smallRow := compareCoords(from.Row, to.Row)
 	bigCol, smallCol := compareCoords(from.Column, to.Column)
 	switch {
@@ -283,7 +319,7 @@ func (b *Board) GetAttackedPath(from, to *Square) map[*Square]bool {
 func (b *Board) horizontalPath(bigCol, smallCol, row int) map[*Square]bool {
 	path := make(map[*Square]bool)
 
-	for col := smallCol + 1; col < bigCol; col++ {
+	for col := smallCol; col < bigCol; col++ {
 		sq := b.Squares[row][col]
 		path[sq] = true
 	}
@@ -293,7 +329,7 @@ func (b *Board) horizontalPath(bigCol, smallCol, row int) map[*Square]bool {
 func (b *Board) verticalPath(bigRow, smallRow, col int) map[*Square]bool {
 	path := make(map[*Square]bool)
 
-	for row := smallRow + 1; row < bigRow; row++ {
+	for row := smallRow; row < bigRow; row++ {
 		sq := b.Squares[row][col]
 		path[sq] = true
 	}
@@ -305,7 +341,7 @@ func (b *Board) diagonalPath(from, to *Square) map[*Square]bool {
 
 	rows := orderCoords(from.Row, to.Row)
 	cols := orderCoords(from.Column, to.Column)
-	for i := range len(rows) {
+	for i := range rows {
 		sq := b.Squares[rows[i]][cols[i]]
 		path[sq] = true
 	}
@@ -316,11 +352,11 @@ func (b *Board) diagonalPath(from, to *Square) map[*Square]bool {
 func orderCoords(from, to int) []int {
 	var coords []int
 	if from-to < 0 {
-		for coord := from + 1; coord < to; coord++ {
+		for coord := from; coord < to; coord++ {
 			coords = append(coords, coord)
 		}
 	} else {
-		for coord := from - 1; coord > to; coord-- {
+		for coord := from; coord > to; coord-- {
 			coords = append(coords, coord)
 		}
 	}
@@ -363,41 +399,41 @@ func (b *Board) SetPiece(piece Piece, square *Square) {
 
 func (b *Board) SetupPieces() {
 	var whiteStartSquares = map[string]Piece{
-		"A2": &Pawn{},
-		"B2": &Pawn{},
-		"C2": &Pawn{},
-		"D2": &Pawn{},
-		"E2": &Pawn{},
-		"F2": &Pawn{},
-		"G2": &Pawn{},
-		"H2": &Pawn{},
-		"B1": &Knight{},
-		"G1": &Knight{},
-		"C1": &Bishop{},
-		"F1": &Bishop{},
-		"A1": &Rook{CastleSq: b.Squares[ROW_1][COL_D]},
-		"H1": &Rook{CastleSq: b.Squares[ROW_1][COL_F]},
-		"D1": &Queen{},
-		"E1": &King{},
+		"A2": &Pawn{value: 1.0},
+		"B2": &Pawn{value: 1.0},
+		"C2": &Pawn{value: 1.0},
+		"D2": &Pawn{value: 1.0},
+		"E2": &Pawn{value: 1.0},
+		"F2": &Pawn{value: 1.0},
+		"G2": &Pawn{value: 1.0},
+		"H2": &Pawn{value: 1.0},
+		"B1": &Knight{value: 3.05},
+		"G1": &Knight{value: 3.05},
+		"C1": &Bishop{value: 3.33},
+		"F1": &Bishop{value: 3.33},
+		"A1": &Rook{value: 5.63, CastleSq: b.Squares[ROW_1][COL_D]},
+		"H1": &Rook{value: 5.63, CastleSq: b.Squares[ROW_1][COL_F]},
+		"D1": &Queen{value: 9.5},
+		"E1": &King{value: 99.9},
 	}
 
 	var blackStartSquares = map[string]Piece{
-		"A7": &Pawn{},
-		"B7": &Pawn{},
-		"C7": &Pawn{},
-		"D7": &Pawn{},
-		"E7": &Pawn{},
-		"F7": &Pawn{},
-		"G7": &Pawn{},
-		"H7": &Pawn{},
-		"B8": &Knight{},
-		"G8": &Knight{},
-		"C8": &Bishop{},
-		"F8": &Bishop{},
-		"A8": &Rook{CastleSq: b.Squares[ROW_8][COL_D]},
-		"H8": &Rook{CastleSq: b.Squares[ROW_8][COL_F]},
-		"D8": &Queen{},
-		"E8": &King{},
+		"A7": &Pawn{value: -1.0},
+		"B7": &Pawn{value: -1.0},
+		"C7": &Pawn{value: -1.0},
+		"D7": &Pawn{value: -1.0},
+		"E7": &Pawn{value: -1.0},
+		"F7": &Pawn{value: -1.0},
+		"G7": &Pawn{value: -1.0},
+		"H7": &Pawn{value: -1.0},
+		"B8": &Knight{value: -3.05},
+		"G8": &Knight{value: -3.05},
+		"C8": &Bishop{value: -3.33},
+		"F8": &Bishop{value: -3.33},
+		"A8": &Rook{value: -5.63, CastleSq: b.Squares[ROW_8][COL_D]},
+		"H8": &Rook{value: -5.63, CastleSq: b.Squares[ROW_8][COL_F]},
+		"D8": &Queen{value: -9.5},
+		"E8": &King{value: -99.9},
 	}
 	whiteRows := [2]int{6, 7}
 	blackRows := [2]int{0, 1}

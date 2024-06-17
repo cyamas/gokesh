@@ -1,9 +1,138 @@
 package board
 
 import (
-	"fmt"
 	"testing"
 )
+
+func TestGetAllValidMoves(t *testing.T) {
+	board1 := New()
+
+	whiteKing1 := &King{color: WHITE}
+	blackKing1 := &King{color: BLACK}
+	blackQueen1 := &Queen{color: BLACK}
+	whiteFPawn1 := &Pawn{color: WHITE}
+	whiteKnight1 := &Knight{color: WHITE}
+	blackRook1 := &Rook{color: BLACK}
+	whiteQueen1 := &Queen{color: WHITE}
+	whiteBishop1 := &Bishop{color: WHITE}
+
+	e1 := board1.Squares[ROW_1][COL_E]
+	e8 := board1.Squares[ROW_8][COL_E]
+	d2 := board1.Squares[ROW_2][COL_D]
+	f2 := board1.Squares[ROW_2][COL_F]
+	b3 := board1.Squares[ROW_3][COL_B]
+	d8 := board1.Squares[ROW_8][COL_D]
+	d1 := board1.Squares[ROW_1][COL_D]
+	c1 := board1.Squares[ROW_1][COL_C]
+
+	board1.SetPiece(whiteKing1, e1)
+	board1.SetPiece(blackKing1, e8)
+	board1.SetPiece(blackQueen1, d2)
+	board1.SetPiece(whiteFPawn1, f2)
+	board1.SetPiece(whiteKnight1, b3)
+	board1.SetPiece(blackRook1, d8)
+	board1.SetPiece(whiteQueen1, d1)
+	board1.SetPiece(whiteBishop1, c1)
+
+	tests := []struct {
+		board       *Board
+		color       string
+		expectedLen int
+	}{
+		{
+			board1,
+			WHITE,
+			4,
+		},
+	}
+
+	for _, tt := range tests {
+		tt.board.Evaluate(ENEMY[tt.color])
+
+		valids := tt.board.GetAllValidMoves(tt.color)
+		if len(valids) != tt.expectedLen {
+			t.Fatalf("%s should have %d valid moves. Got %d", tt.color, tt.expectedLen, len(valids))
+		}
+	}
+}
+
+func TestAttackPath(t *testing.T) {
+	board1 := New()
+
+	whiteKing1 := &King{color: WHITE}
+	blackKing1 := &King{color: BLACK}
+	whiteBishop1 := &King{color: WHITE}
+	blackRook1 := &King{color: BLACK}
+	blackBishop1 := &Bishop{color: BLACK}
+	whiteKnight1 := &Knight{color: WHITE}
+
+	e1 := board1.Squares[ROW_1][COL_E]
+	e8 := board1.Squares[ROW_8][COL_E]
+	b5 := board1.Squares[ROW_5][COL_B]
+	c6 := board1.Squares[ROW_6][COL_C]
+	d7 := board1.Squares[ROW_7][COL_D]
+	d1 := board1.Squares[ROW_1][COL_D]
+	f2 := board1.Squares[ROW_2][COL_F]
+	d6 := board1.Squares[ROW_6][COL_D]
+
+	board1.SetPiece(whiteKing1, e1)
+	board1.SetPiece(whiteBishop1, b5)
+	board1.SetPiece(blackKing1, e8)
+	board1.SetPiece(blackRook1, d1)
+	board1.SetPiece(blackBishop1, f2)
+	board1.SetPiece(whiteKnight1, d6)
+
+	tests := []struct {
+		board           *Board
+		testKing        *King
+		testChecker     Piece
+		expectedLenPath int
+		expectedPath    []*Square
+	}{
+		{
+			board1,
+			blackKing1,
+			whiteBishop1,
+			3,
+			[]*Square{b5, c6, d7},
+		},
+		{
+			board1,
+			whiteKing1,
+			blackRook1,
+			1,
+			[]*Square{d1},
+		},
+		{
+			board1,
+			whiteKing1,
+			blackBishop1,
+			1,
+			[]*Square{f2},
+		},
+		{
+			board1,
+			blackKing1,
+			whiteKnight1,
+			1,
+			[]*Square{d6},
+		},
+	}
+
+	for _, tt := range tests {
+		fromSq := tt.testChecker.Square()
+		toSq := tt.testKing.Square()
+		attackPath := tt.board.GetAttackedPath(fromSq, toSq)
+		if len(attackPath) != tt.expectedLenPath {
+			t.Fatalf("checkPath should have len %d. Got %d", tt.expectedLenPath, len(attackPath))
+		}
+		for _, sq := range tt.expectedPath {
+			if _, ok := attackPath[sq]; !ok {
+				t.Fatalf("%s is not in the attacked path", sq.Name)
+			}
+		}
+	}
+}
 
 func TestCheckmate(t *testing.T) {
 	board1 := New()
@@ -109,6 +238,7 @@ func TestCheckmate(t *testing.T) {
 func TestPieceBlocksCheck(t *testing.T) {
 	board1 := New()
 	board2 := New()
+	board3 := New()
 
 	whiteDKing := &King{color: WHITE}
 	d1 := board1.Squares[ROW_1][COL_D]
@@ -120,7 +250,7 @@ func TestPieceBlocksCheck(t *testing.T) {
 	h5 := board2.Squares[ROW_5][COL_H]
 
 	whiteAKing := &King{color: WHITE}
-	a5 := board2.Squares[ROW_5][COL_A]
+	a5 := board3.Squares[ROW_5][COL_A]
 
 	whiteRook := &Rook{color: WHITE}
 	e1 := board1.Squares[ROW_1][COL_E]
@@ -138,13 +268,19 @@ func TestPieceBlocksCheck(t *testing.T) {
 	f3 := board2.Squares[ROW_3][COL_F]
 
 	blackKnight := &Knight{color: BLACK}
-	c6 := board2.Squares[ROW_6][COL_C]
+	c6 := board3.Squares[ROW_6][COL_C]
 
 	blackPawn := &Pawn{color: BLACK, Moved: true}
 	g5 := board2.Squares[ROW_5][COL_G]
 
 	whitePawn := &Pawn{color: WHITE, Moved: true}
-	b4 := board2.Squares[ROW_4][COL_B]
+	b4 := board3.Squares[ROW_4][COL_B]
+
+	blackKing3 := &King{color: BLACK}
+	g2 := board3.Squares[ROW_2][COL_G]
+
+	whiteKing2 := &King{color: WHITE}
+	a4 := board2.Squares[ROW_4][COL_A]
 
 	board1.SetPiece(blackFKing, f8)
 	board1.SetPiece(whiteDKing, d1)
@@ -154,11 +290,14 @@ func TestPieceBlocksCheck(t *testing.T) {
 	board1.SetPiece(whiteRook, e1)
 
 	board2.SetPiece(blackHKing, h5)
-	board2.SetPiece(whiteAKing, a5)
 	board2.SetPiece(whiteBishop, f3)
-	board2.SetPiece(blackKnight, c6)
-	board2.SetPiece(whitePawn, b4)
 	board2.SetPiece(blackPawn, g5)
+	board2.SetPiece(whiteKing2, a4)
+
+	board3.SetPiece(whiteAKing, a5)
+	board3.SetPiece(whitePawn, b4)
+	board3.SetPiece(blackKnight, c6)
+	board3.SetPiece(blackKing3, g2)
 
 	tests := []struct {
 		board    *Board
@@ -176,12 +315,12 @@ func TestPieceBlocksCheck(t *testing.T) {
 			"PAWN: G5 -> G4",
 		},
 		{
-			board2,
+			board3,
 			&Move{
 				Turn:  WHITE,
 				Piece: whitePawn,
 				From:  b4,
-				To:    board2.Squares[ROW_5][COL_B],
+				To:    board3.Squares[ROW_5][COL_B],
 			},
 			"PAWN: B4 -> B5 is not a valid move",
 		},
@@ -198,7 +337,7 @@ func TestPieceBlocksCheck(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt.board.Evaluate(tt.input.Turn)
+		tt.board.Evaluate(ENEMY[tt.input.Turn])
 		receipt, err := tt.board.MovePiece(tt.input)
 		if receipt != tt.expected {
 			t.Fatalf("Receipt should be %s. Got %s", tt.expected, receipt)
@@ -218,6 +357,7 @@ func TestPieceBlocksCheck(t *testing.T) {
 
 func TestAbsolutePins(t *testing.T) {
 	board := New()
+	board2 := New()
 
 	whiteKing := &King{color: WHITE}
 	e1 := board.Squares[ROW_1][COL_E]
@@ -248,11 +388,39 @@ func TestAbsolutePins(t *testing.T) {
 	board.SetPiece(blackDPawn, d7)
 	board.SetPiece(blackRook, c6)
 
+	blackKing2 := &King{color: BLACK}
+	d8 := board2.Squares[ROW_8][COL_D]
+
+	whiteQueen2 := &Queen{color: WHITE}
+	g8 := board2.Squares[ROW_8][COL_G]
+
+	blackKnight2 := &Knight{color: BLACK}
+	d7_2 := board2.Squares[ROW_7][COL_D]
+
+	whiteBishop2 := &Bishop{color: WHITE}
+	d6 := board2.Squares[ROW_6][COL_D]
+
+	blackPawn2 := &Pawn{color: BLACK}
+	c7 := board2.Squares[ROW_7][COL_C]
+
+	whiteBishop2_2 := &Bishop{color: WHITE}
+	g4 := board2.Squares[ROW_4][COL_G]
+
+	board2.SetPiece(&King{color: WHITE}, board2.Squares[ROW_1][COL_E])
+	board2.SetPiece(blackKing2, d8)
+	board2.SetPiece(whiteQueen2, g8)
+	board2.SetPiece(blackKnight2, d7_2)
+	board2.SetPiece(whiteBishop2, d6)
+	board2.SetPiece(blackPawn2, c7)
+	board2.SetPiece(whiteBishop2_2, g4)
+
 	tests := []struct {
+		board    *Board
 		input    *Move
 		expected string
 	}{
 		{
+			board,
 			&Move{
 				Turn:  BLACK,
 				Piece: blackRook,
@@ -262,6 +430,7 @@ func TestAbsolutePins(t *testing.T) {
 			"ROOK: C6 -> C5",
 		},
 		{
+			board,
 			&Move{
 				Turn:  BLACK,
 				Piece: blackDPawn,
@@ -271,18 +440,29 @@ func TestAbsolutePins(t *testing.T) {
 			"PAWN: D7 -> D6 is not a valid move",
 		},
 		{
+			board2,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteDPawn,
 				From:  d2,
-				To:    board.Squares[ROW_4][COL_D],
+				To:    board2.Squares[ROW_4][COL_D],
 			},
 			"PAWN: D2 -> D4 is not a valid move",
+		},
+		{
+			board2,
+			&Move{
+				Turn:  BLACK,
+				Piece: blackKnight2,
+				From:  d7_2,
+				To:    board2.Squares[ROW_8][COL_F],
+			},
+			"KNIGHT: D7 -> F8",
 		},
 	}
 
 	for _, tt := range tests {
-		board.Evaluate(tt.input.Turn)
+		tt.board.Evaluate(ENEMY[tt.input.Turn])
 		receipt, err := board.MovePiece(tt.input)
 
 		if receipt != tt.expected {
@@ -802,12 +982,6 @@ func TestKingInCheck(t *testing.T) {
 			t.Fatalf("King is in check should be %t (%s)", tt.expectedCheck, tt.input.Square().Name)
 		}
 		if len(checkingPieces) != tt.expectednumChecks {
-			for _, piece := range checkingPieces {
-				fmt.Println("CHECKING PIECE: ", piece.Type())
-				for sq, activity := range piece.ActiveSquares() {
-					fmt.Printf("ACTIVE SQ: %s ACTIVITY: %s\n", sq.Name, activity)
-				}
-			}
 			t.Fatalf("King should have %d checking pieces. Got %d", tt.expectednumChecks, len(checkingPieces))
 		}
 
@@ -1567,8 +1741,8 @@ func TestCaptureMovePawn(t *testing.T) {
 				t.Fatalf("%s should have moved %s -> %s", tt.input.Piece.Type(), tt.input.From.Name, tt.input.To.Name)
 			}
 		} else {
-			if tt.input.Type != "" {
-				t.Fatalf("Move Type should be ''. Got '%s'", tt.input.Type)
+			if tt.input.Type != GUARDED {
+				t.Fatalf("Move Type should be GUARDED. Got '%s'", tt.input.Type)
 			}
 			if !testPieceHasNotMoved(tt.input.Piece, tt.input.From, tt.input.To) {
 				t.Fatalf("%s should not have moved", tt.input.Piece.Type())
@@ -1647,8 +1821,8 @@ func TestEnPassantAsBlack(t *testing.T) {
 				t.Fatalf("%s should have moved %s -> %s", tt.input.Piece.Type(), tt.input.From.Name, tt.input.To.Name)
 			}
 		} else {
-			if tt.input.Type != "" {
-				t.Fatalf("Move Type should be ''. Got '%s'", tt.input.Type)
+			if tt.input.Type != GUARDED {
+				t.Fatalf("Move Type should be GUARDED. Got '%s'", tt.input.Type)
 			}
 			if !testPieceHasNotMoved(tt.input.Piece, tt.input.From, tt.input.To) {
 				t.Fatalf("%s should not have moved", tt.input.Piece.Type())
@@ -1728,8 +1902,8 @@ func TestEnPassantAsWhite(t *testing.T) {
 				t.Fatalf("%s should have moved %s -> %s", tt.input.Piece.Type(), tt.input.From.Name, tt.input.To.Name)
 			}
 		} else {
-			if tt.input.Type != "" {
-				t.Fatalf("Move Type should be ''. Got '%s'", tt.input.Type)
+			if tt.input.Type != GUARDED {
+				t.Fatalf("Move Type should be GUARDED. Got '%s'", tt.input.Type)
 			}
 			if !testPieceHasNotMoved(tt.input.Piece, tt.input.From, tt.input.To) {
 				t.Fatalf("%s should not have moved", tt.input.Piece.Type())

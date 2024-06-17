@@ -17,7 +17,7 @@ type Pin struct {
 
 type Piece interface {
 	Type() string
-	Value() int
+	Value() float32
 	SetColor(color string)
 	Color() string
 	SetSquare(square *Square)
@@ -26,13 +26,14 @@ type Piece interface {
 	ActiveSquares() map[*Square]SqActivity
 	SetPin(piece Piece, path map[*Square]bool)
 	Pin() *Pin
+	IsAlly(color string) bool
 	IsEnemy(color string) bool
 }
 
 type King struct {
 	square        *Square
 	color         string
-	value         int
+	value         float32
 	Moved         bool
 	activeSquares map[*Square]SqActivity
 }
@@ -49,7 +50,7 @@ var KING_DIRS = map[string][2]int{
 }
 
 func (k *King) Type() string                              { return KING }
-func (k *King) Value() int                                { return k.value }
+func (k *King) Value() float32                            { return k.value }
 func (k *King) SetColor(color string)                     { k.color = color }
 func (k *King) Color() string                             { return k.color }
 func (k *King) SetSquare(square *Square)                  { k.square = square }
@@ -57,6 +58,7 @@ func (k *King) Square() *Square                           { return k.square }
 func (k *King) ActiveSquares() map[*Square]SqActivity     { return k.activeSquares }
 func (k *King) SetPin(piece Piece, path map[*Square]bool) {}
 func (k *King) Pin() *Pin                                 { return nil }
+func (k *King) IsAlly(color string) bool                  { return k.color == color }
 func (k *King) IsEnemy(color string) bool                 { return k.color != color }
 
 func (k *King) SetActiveSquares(board *Board) {
@@ -164,25 +166,27 @@ func rookCanCastle(square *Square) bool {
 
 func (k *King) IsInCheck(board *Board) (bool, []Piece) {
 	attackedSqs := board.GetAttackedSquares(k.color)
-	checkingPieces, ok := attackedSqs[k.square]
-	if ok {
+
+	if checkingPieces, ok := attackedSqs[k.square]; ok {
 		return true, checkingPieces
 	}
+
 	return false, nil
 }
 
 type Queen struct {
 	square        *Square
 	color         string
-	value         int
+	value         float32
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
 }
 
 func (q *Queen) Type() string                          { return QUEEN }
-func (q *Queen) Value() int                            { return q.value }
+func (q *Queen) Value() float32                        { return q.value }
 func (q *Queen) SetColor(color string)                 { q.color = color }
 func (q *Queen) Color() string                         { return q.color }
+func (q *Queen) IsAlly(color string) bool              { return q.color == color }
 func (q *Queen) IsEnemy(color string) bool             { return q.color != color }
 func (q *Queen) SetSquare(square *Square)              { q.square = square }
 func (q *Queen) Square() *Square                       { return q.square }
@@ -215,7 +219,7 @@ func (q *Queen) SetPin(piece Piece, path map[*Square]bool) {
 type Rook struct {
 	square        *Square
 	color         string
-	value         int
+	value         float32
 	Moved         bool
 	CastleSq      *Square
 	activeSquares map[*Square]SqActivity
@@ -223,9 +227,10 @@ type Rook struct {
 }
 
 func (r *Rook) Type() string                          { return ROOK }
-func (r *Rook) Value() int                            { return r.value }
+func (r *Rook) Value() float32                        { return r.value }
 func (r *Rook) SetColor(color string)                 { r.color = color }
 func (r *Rook) Color() string                         { return r.color }
+func (r *Rook) IsAlly(color string) bool              { return r.color == color }
 func (r *Rook) IsEnemy(color string) bool             { return r.color != color }
 func (r *Rook) SetSquare(square *Square)              { r.square = square }
 func (r *Rook) Square() *Square                       { return r.square }
@@ -253,15 +258,16 @@ func (r *Rook) SetPin(piece Piece, path map[*Square]bool) {
 type Bishop struct {
 	square        *Square
 	color         string
-	value         int
+	value         float32
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
 }
 
 func (b *Bishop) Type() string                          { return BISHOP }
-func (b *Bishop) Value() int                            { return b.value }
+func (b *Bishop) Value() float32                        { return b.value }
 func (b *Bishop) SetColor(color string)                 { b.color = color }
 func (b *Bishop) Color() string                         { return b.color }
+func (b *Bishop) IsAlly(color string) bool              { return b.color == color }
 func (b *Bishop) IsEnemy(color string) bool             { return b.color != color }
 func (b *Bishop) SetSquare(square *Square)              { b.square = square }
 func (b *Bishop) Square() *Square                       { return b.square }
@@ -288,7 +294,7 @@ func (b *Bishop) SetPin(piece Piece, path map[*Square]bool) {
 type Knight struct {
 	square        *Square
 	color         string
-	value         int
+	value         float32
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
 }
@@ -305,9 +311,10 @@ var KNIGHT_DIRS = [8][2]int{
 }
 
 func (kn *Knight) Type() string                          { return KNIGHT }
-func (kn *Knight) Value() int                            { return kn.value }
+func (kn *Knight) Value() float32                        { return kn.value }
 func (kn *Knight) SetColor(color string)                 { kn.color = color }
 func (kn *Knight) Color() string                         { return kn.color }
+func (kn *Knight) IsAlly(color string) bool              { return kn.color == color }
 func (kn *Knight) IsEnemy(color string) bool             { return kn.color != color }
 func (kn *Knight) SetSquare(square *Square)              { kn.square = square }
 func (kn *Knight) Square() *Square                       { return kn.square }
@@ -319,12 +326,12 @@ func (kn *Knight) SetPin(piece Piece, path map[*Square]bool) {
 }
 
 func (kn *Knight) SetActiveSquares(board *Board) {
-	actives := make(map[*Square]SqActivity)
-
-	if kn.pin != nil {
-		kn.activeSquares = actives
+	if kn.pin != nil || (board.Check && len(board.Checkers) > 1) {
+		kn.activeSquares = map[*Square]SqActivity{}
 		return
 	}
+
+	actives := make(map[*Square]SqActivity)
 
 	for _, dir := range KNIGHT_DIRS {
 		candRow := kn.square.Row + dir[0]
@@ -333,11 +340,15 @@ func (kn *Knight) SetActiveSquares(board *Board) {
 		if squareExists(candRow, candCol) {
 			cand := board.Squares[candRow][candCol]
 			switch {
-			case cand.Piece.Type() == NULL:
+			case board.Check:
+				if kn.candidateStopsCheck(cand, board) {
+					kn.addCheckedActiveSquare(cand, actives, board)
+				}
+			case cand.IsEmpty():
 				actives[cand] = FREE
-			case cand.Piece.Type() != NULL && cand.Piece.Color() != kn.color:
+			case cand.Piece.IsEnemy(kn.color):
 				actives[cand] = CAPTURE
-			case cand.Piece.Type() != NULL && cand.Piece.Color() == kn.color:
+			case cand.Piece.IsAlly(kn.color):
 				actives[cand] = GUARDED
 			}
 		}
@@ -346,159 +357,155 @@ func (kn *Knight) SetActiveSquares(board *Board) {
 	kn.activeSquares = actives
 }
 
+func (kn *Knight) candidateStopsCheck(cand *Square, board *Board) bool {
+	checkerSq := board.Checkers[0].Square()
+	kingSq := board.GetKing(kn.color).Square()
+	checkPath := board.GetAttackedPath(checkerSq, kingSq)
+	if _, ok := checkPath[cand]; ok {
+		return true
+	}
+
+	return false
+}
+
+func (kn *Knight) addCheckedActiveSquare(cand *Square, actives map[*Square]SqActivity, board *Board) {
+	if cand == board.Checkers[0].Square() {
+		actives[cand] = CAPTURE
+	}
+	actives[cand] = FREE
+}
+
 type Pawn struct {
 	square        *Square
 	color         string
-	value         int
+	value         float32
 	Moved         bool
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
 }
 
-func (p *Pawn) Type() string              { return PAWN }
-func (p *Pawn) Value() int                { return p.value }
-func (p *Pawn) SetColor(color string)     { p.color = color }
-func (p *Pawn) Color() string             { return p.color }
-func (p *Pawn) SetSquare(square *Square)  { p.square = square }
-func (p *Pawn) IsEnemy(color string) bool { return p.color != color }
-func (p *Pawn) Square() *Square           { return p.square }
-func (p *Pawn) Pin() *Pin                 { return p.pin }
-func (p *Pawn) SetPin(piece Piece, path map[*Square]bool) {
-	p.pin = &Pin{piece, path}
-}
-func (p *Pawn) ActiveSquares() map[*Square]SqActivity { return p.activeSquares }
-func (p *Pawn) SetActiveSquares(board *Board) {
-	actives := make(map[*Square]SqActivity)
+func (p *Pawn) Type() string                              { return PAWN }
+func (p *Pawn) Value() float32                            { return p.value }
+func (p *Pawn) SetColor(color string)                     { p.color = color }
+func (p *Pawn) Color() string                             { return p.color }
+func (p *Pawn) SetSquare(square *Square)                  { p.square = square }
+func (p *Pawn) IsAlly(color string) bool                  { return p.color == color }
+func (p *Pawn) IsEnemy(color string) bool                 { return p.color != color }
+func (p *Pawn) Square() *Square                           { return p.square }
+func (p *Pawn) Pin() *Pin                                 { return p.pin }
+func (p *Pawn) SetPin(piece Piece, path map[*Square]bool) { p.pin = &Pin{piece, path} }
+func (p *Pawn) ActiveSquares() map[*Square]SqActivity     { return p.activeSquares }
 
-	if p.pinnedHorizontally() {
+func (p *Pawn) SetActiveSquares(board *Board) {
+	if p.pinnedHorizontally() || (board.Check && len(board.Checkers) > 1) {
 		p.activeSquares = map[*Square]SqActivity{}
 		return
 	}
 
-	p.addFreeMoves(board, actives)
-	p.addCapturesAndGuardeds(board, actives)
-
-	enPassantSq, ok := p.checkEnPassant(board)
-	if ok {
-		actives[enPassantSq] = EN_PASSANT
-	}
-
-	king := board.GetKing(p.color)
-
-	if isChecked, checkers := king.IsInCheck(board); isChecked {
-		p.activeSquares = board.filterActivesForStoppingCheck(actives, king, checkers)
-		return
+	actives := map[*Square]SqActivity{}
+	p.addForwardSquares(actives, board)
+	p.addDiagonalSquares(actives, board)
+	if board.Check {
+		p.filterForCheck(actives, board)
 	}
 
 	p.activeSquares = actives
 }
 
-func (b *Board) filterActivesForStoppingCheck(actives map[*Square]SqActivity, king *King, checkers []Piece) map[*Square]SqActivity {
-	filtered := map[*Square]SqActivity{}
-	if len(checkers) > 1 || checkers[0].Type() == KNIGHT {
-		return filtered
-	}
-
-	checker := checkers[0]
-	checkerSq := checker.Square()
-	checkPath := b.GetAttackedPath(checkerSq, king.Square())
-	for sq, activity := range actives {
-		if sq == checkerSq && activity == CAPTURE {
-			filtered[sq] = activity
-		}
-		if _, ok := checkPath[sq]; ok {
-			filtered[sq] = activity
-		}
-	}
-
-	return filtered
-}
-
-func (p *Pawn) checkEnPassant(board *Board) (*Square, bool) {
-	lastMove := board.LastMove()
-	if lastMove == nil {
-		return nil, false
-	}
-	if lastMove.Piece.Type() == PAWN {
-		switch p.color {
-
-		case WHITE:
-			if p.square.Row != ROW_5 {
-				return nil, false
-			}
-			if lastMove.From.Row == ROW_7 && lastMove.To.Row == ROW_5 {
-				if calcOffset(lastMove.To.Column, p.square.Column) == 1 {
-					epRow := p.square.Row - 1
-					epCol := lastMove.To.Column
-					epSquare := board.Squares[epRow][epCol]
-					return epSquare, true
-				}
-			}
-
-		case BLACK:
-			if p.square.Row != 4 {
-				return nil, false
-			}
-			if lastMove.From.Row == ROW_2 && lastMove.To.Row == ROW_4 {
-				if calcOffset(lastMove.To.Column, p.square.Column) == 1 {
-					epRow := p.square.Row + 1
-					epCol := lastMove.To.Column
-					epSquare := board.Squares[epRow][epCol]
-					return epSquare, true
-				}
-			}
-		}
-	}
-	return nil, false
-}
-
-func (p *Pawn) addFreeMoves(board *Board, actives map[*Square]SqActivity) {
+func (p *Pawn) addForwardSquares(actives map[*Square]SqActivity, board *Board) {
 	if p.pinnedDiagonally() {
 		return
 	}
 
-	freeCol := p.square.Column
-	freeRow := p.freeMoveRow(1)
+	row := p.candidateRow(1)
+	col := p.square.Column
 
-	cand := board.getSquare(freeRow, freeCol)
-	if cand.Piece.Type() == NULL {
-		actives[cand] = FREE
-		if !p.Moved {
-			dblRow := p.freeMoveRow(2)
-			dblCand := board.getSquare(dblRow, freeCol)
-			if dblCand.Piece.Type() == NULL {
-				actives[dblCand] = FREE
+	if !p.Moved {
+		cand := board.getSquare(p.candidateRow(2), col)
+		if cand.IsEmpty() {
+			actives[cand] = FREE
+		}
+	}
+
+	if squareExists(row, col) {
+		cand := board.getSquare(row, col)
+		if cand.IsEmpty() {
+			actives[cand] = FREE
+		}
+	}
+}
+
+func (p *Pawn) addDiagonalSquares(actives map[*Square]SqActivity, board *Board) {
+	if p.pinnedVertically() {
+		return
+	}
+
+	row := p.candidateRow(1)
+	cols := p.candidateCols()
+
+	for _, col := range cols {
+		if squareExists(row, col) {
+			cand := board.getSquare(row, col)
+			switch {
+			case !cand.IsEmpty() && cand.Piece.IsEnemy(p.color):
+				actives[cand] = CAPTURE
+			case cand.IsEmpty() && p.canEnPassant(cand, board):
+				actives[cand] = EN_PASSANT
+			default:
+				actives[cand] = GUARDED
 			}
 		}
 	}
 }
 
-func (p *Pawn) freeMoveRow(dist int) int {
-	currRow := p.square.Row
-	if p.color == WHITE {
-		return currRow - dist
+func (p *Pawn) canEnPassant(cand *Square, board *Board) bool {
+	if len(board.Moves) == 0 {
+		return false
 	}
-	return currRow + dist
-}
+	lastMove := board.LastMove()
 
-func (p *Pawn) addCapturesAndGuardeds(board *Board, actives map[*Square]SqActivity) {
-	candSqs := p.getCaptureSquares(board)
-
-	if len(candSqs) == 0 {
-		return
-	}
-
-	for _, sq := range candSqs {
-		switch {
-		case p.pinnedVertically():
-			actives[sq] = GUARDED
-		case !sq.IsEmpty() && sq.Piece.IsEnemy(p.color):
-			actives[sq] = CAPTURE
-		case !sq.IsEmpty() && !sq.Piece.IsEnemy(p.color):
-			actives[sq] = GUARDED
+	if lastMove.Piece.Type() == PAWN {
+		currRow := ROW_5
+		fromRow := ROW_7
+		if p.color == BLACK {
+			currRow = ROW_4
+			fromRow = ROW_2
 		}
 
+		if p.square.Row == currRow &&
+			lastMove.To.Row == currRow &&
+			lastMove.From.Row == fromRow &&
+			lastMove.From.Column == cand.Column {
+
+			return true
+		}
 	}
+
+	return false
+}
+
+func (p *Pawn) filterForCheck(actives map[*Square]SqActivity, board *Board) {
+	checker := board.Checkers[0]
+	king := board.GetKing(p.color)
+
+	checkPath := board.GetAttackedPath(checker.Square(), king.Square())
+	for sq := range actives {
+		if _, ok := checkPath[sq]; !ok {
+			delete(actives, sq)
+		}
+	}
+}
+func (p *Pawn) candidateCols() [2]int {
+	col := p.square.Column
+	return [2]int{col - 1, col + 1}
+}
+
+func (p *Pawn) candidateRow(dist int) int {
+	row := p.square.Row
+	if p.color == WHITE {
+		return row - dist
+	}
+	return row + dist
 }
 
 func (p *Pawn) pinnedHorizontally() bool {
@@ -529,51 +536,17 @@ func (p *Pawn) pinnedDiagonally() bool {
 	return pinnerRow != p.square.Row && pinnerCol != p.square.Column
 }
 
-func (p *Pawn) getCaptureSquares(board *Board) []*Square {
-	sqs := []*Square{}
-	row := p.captureRow()
-	eastCol, westCol := p.captureColumns()
-	if squareExists(row, eastCol) {
-		sqs = append(sqs, board.Squares[row][eastCol])
-	}
-	if squareExists(row, westCol) {
-		sqs = append(sqs, board.Squares[row][westCol])
-	}
-	return sqs
-}
-
-func (p *Pawn) captureRow() int {
-	currRow := p.square.Row
-	if p.color == WHITE {
-		return currRow - 1
-	}
-	return currRow + 1
-}
-
-func (p *Pawn) captureColumns() (int, int) {
-	return p.square.Column - 1, p.square.Column + 1
-}
-
-func (p *Pawn) checkForValidCapture(board *Board, row, col int) (*Square, bool) {
-	if 0 <= col && col <= 7 {
-		cand := board.getSquare(row, col)
-		if !cand.IsEmpty() && cand.Piece.Color() != p.color {
-			return cand, true
-		}
-	}
-	return nil, false
-}
-
 type Null struct {
 	square *Square
 	color  string
-	value  int
+	value  float32
 }
 
 func (n *Null) Type() string                              { return NULL }
-func (n *Null) Value() int                                { return n.value }
+func (n *Null) Value() float32                            { return n.value }
 func (n *Null) SetColor(color string)                     { n.color = color }
 func (n *Null) Color() string                             { return "NULL" }
+func (n *Null) IsAlly(color string) bool                  { return false }
 func (n *Null) IsEnemy(color string) bool                 { return false }
 func (n *Null) SetSquare(square *Square)                  { n.square = square }
 func (n *Null) Square() *Square                           { return n.square }
@@ -598,12 +571,8 @@ func calcOffset(x int, y int) int {
 func calcBRQActives(piece Piece, dirs map[string][2]int, board *Board) map[*Square]SqActivity {
 	actives := make(map[*Square]SqActivity)
 
-	color := piece.Color()
-	king := board.GetKing(color)
-	if checked, checkers := king.IsInCheck(board); checked {
-		if len(checkers) > 1 {
-			return map[*Square]SqActivity{}
-		}
+	if board.Check && len(board.Checkers) > 1 {
+		return actives
 	}
 
 	for _, coords := range dirs {
@@ -658,7 +627,24 @@ func calcBRQActives(piece Piece, dirs map[string][2]int, board *Board) map[*Squa
 			}
 		}
 	}
+
+	if board.Check {
+		return filterBRQActivesForCheck(piece.Color(), actives, board)
+	}
 	return actives
+}
+
+func filterBRQActivesForCheck(color string, actives map[*Square]SqActivity, board *Board) map[*Square]SqActivity {
+	filtered := map[*Square]SqActivity{}
+	king := board.GetKing(color)
+	checkerSq := board.Checkers[0].Square()
+	checkPath := board.GetAttackedPath(checkerSq, king.Square())
+	for sq, activity := range actives {
+		if _, ok := checkPath[sq]; ok {
+			filtered[sq] = activity
+		}
+	}
+	return filtered
 }
 
 func calcBRQPinnedActives(piece Piece, dirs map[string][2]int, board *Board) map[*Square]SqActivity {

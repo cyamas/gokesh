@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math/rand"
 	"strings"
 
 	"github.com/cyamas/gokesh/board"
@@ -112,16 +113,33 @@ var ENEMY = map[string]string{
 	BLACK: WHITE,
 }
 
+type Bot struct {
+	name  string
+	Color string
+}
+
+func (b *Bot) Name() string { return b.name }
+
+func (b *Bot) CreateMove(board *board.Board) string {
+	valids := board.GetAllValidMoves(b.Color)
+	randIdx := rand.Intn(len(valids))
+	randMove := valids[randIdx]
+	moveMsg := fmt.Sprintf("%s %s %s", randMove.Piece.Type(), randMove.From.Name, randMove.To.Name)
+	return moveMsg
+}
+
 type Game struct {
 	Board *board.Board
-	Kings map[string]*board.King
+	Bot   *Bot
 	Turn  string
 }
 
 func New(b *board.Board) *Game {
+	colors := []string{WHITE, BLACK}
+	botColor := colors[rand.Intn(2)]
 	return &Game{
 		Board: b,
-		Kings: map[string]*board.King{WHITE: b.GetKing(WHITE), BLACK: b.GetKing(BLACK)},
+		Bot:   &Bot{name: "GOKESH", Color: botColor},
 		Turn:  WHITE,
 	}
 }
@@ -130,14 +148,21 @@ func (g *Game) Run(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 
 	for {
+		var moveMsg string
 		turnPrompt := fmt.Sprintf("%s's MOVE: ", g.Turn)
 		fmt.Fprint(out, turnPrompt)
-		scanned := scanner.Scan()
-		if !scanned {
-			return
+
+		if g.Bot.Color == g.Turn {
+			moveMsg = g.Bot.CreateMove(g.Board)
+		} else {
+			scanned := scanner.Scan()
+			if !scanned {
+				return
+			}
+			moveMsg = scanner.Text()
 		}
-		moveMsg := scanner.Text()
-		move, err := g.generateMove(moveMsg)
+
+		move, err := g.createMove(moveMsg)
 		if err != nil {
 			fmt.Fprint(out, err.Message+"\n")
 			continue
@@ -153,7 +178,7 @@ func (g *Game) Run(in io.Reader, out io.Writer) {
 	}
 }
 
-func (g *Game) generateMove(msg string) (*board.Move, *Error) {
+func (g *Game) createMove(msg string) (*board.Move, *Error) {
 
 	moveParts := strings.Split(msg, " ")
 	if len(moveParts) != 3 {
@@ -212,6 +237,7 @@ func (g *Game) ExecuteTurn(move *board.Move) string {
 		receipt += fmt.Sprintf("\n%s IN CHECK", ENEMY[g.Turn])
 	}
 
+	receipt += fmt.Sprintf("\nBOARD VALUE: %f", g.Board.Value)
 	g.nextTurn()
 	return receipt
 }
