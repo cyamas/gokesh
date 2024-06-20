@@ -4,6 +4,58 @@ import (
 	"testing"
 )
 
+func TestDiagonalPath(t *testing.T) {
+	board := New()
+	h1 := board.getSquare(ROW_1, COL_H)
+	a1 := board.getSquare(ROW_1, COL_A)
+	b2 := board.getSquare(ROW_2, COL_B)
+	h8 := board.getSquare(ROW_8, COL_H)
+	a8 := board.getSquare(ROW_8, COL_A)
+
+	tests := []struct {
+		from           *Square
+		to             *Square
+		expectedLength int
+	}{
+		{
+			h1,
+			a8,
+			7,
+		},
+		{
+			a1,
+			h8,
+			7,
+		},
+		{
+			a8,
+			h1,
+			7,
+		},
+		{
+			h8,
+			a1,
+			7,
+		},
+		{
+			a1,
+			b2,
+			1,
+		},
+		{
+			b2,
+			a1,
+			1,
+		},
+	}
+	for _, tt := range tests {
+		path := board.diagonalPath(tt.from, tt.to)
+		if len(path) != tt.expectedLength {
+			t.Fatalf("Path should have length %d. Got %d", tt.expectedLength, len(path))
+		}
+	}
+}
+
 func TestCreateNewBoard(t *testing.T) {
 	var board = New()
 	if len(board.Squares) != 8 {

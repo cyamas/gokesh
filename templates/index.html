@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <script
+            src="https://unpkg.com/htmx.org@1.9.11"
+            integrity="sha384-0gxUXCCR8yv9FM2b+U3FDbsKthCI66oH5IA9fHppQq9DDMHuMauqq1ZHBpJxQ0J0"
+            crossorigin="anonymous"
+        ></script>
+        <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/ws.js"></script>
+        <link rel="stylesheet" href="/static/styles.css" />
+        <title>Gokesh</title>
+    </head>
+    <body>
+        <h1>Gokesh</h1>
+        <h3>A chess engine written in Go.</h3>
+        <button id="play-btn" onclick="play()">Play</button>
+        <div id="board"></div>
+        <button id="flip-btn" onclick="flipBoard()">Flip</button>
+        <script src="/static/scripts.js"></script>
+    </body>
+</html>

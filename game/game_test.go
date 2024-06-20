@@ -63,7 +63,7 @@ func TestTurn(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		receipt := game.ExecuteTurn(tt.input)
+		receipt, _ := game.ExecuteTurn(tt.input)
 		if receipt != tt.expected {
 			t.Fatalf("receipt should be '%s'. Got '%s'", tt.expected, receipt)
 		}

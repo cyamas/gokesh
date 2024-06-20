@@ -104,6 +104,19 @@ func (b *Board) getSquare(row, col int) *Square {
 	return b.Squares[row][col]
 }
 
+func (b *Board) CreatePiece(color string, name string) Piece {
+	switch name {
+	case KNIGHT:
+		return &Knight{color: color}
+	case BISHOP:
+		return &Bishop{color: color}
+	case ROOK:
+		return &Rook{color: color}
+	default:
+		return &Queen{color: color}
+	}
+}
+
 type Board struct {
 	Squares     [][]*Square
 	Moves       []*Move
@@ -145,33 +158,19 @@ func New() *Board {
 
 func (b *Board) Evaluate(turn string) {
 	b.Value = 0.0
+	b.resetPins()
 	if turn == WHITE {
 		b.evaluateWhite()
-		king := b.GetKing(BLACK)
-		checked, checkers := king.IsInCheck(b)
-		b.Check = checked
-		b.Checkers = checkers
 		b.evaluateBlack()
-		if b.CheckmateDetected(BLACK, king) {
+		if b.CheckmateDetected(BLACK) {
 			b.Checkmate = true
 		}
 	} else {
 		b.evaluateBlack()
-		king := b.GetKing(WHITE)
-		checked, checkers := king.IsInCheck(b)
-		b.Check = checked
-		b.Checkers = checkers
 		b.evaluateWhite()
-		if b.CheckmateDetected(WHITE, king) {
+		if b.CheckmateDetected(WHITE) {
 			b.Checkmate = true
 		}
-	}
-}
-
-func (b *Board) evaluateBlack() {
-	for piece := range b.BlackPieces {
-		piece.SetActiveSquares(b)
-		b.Value += piece.Value()
 	}
 }
 
@@ -179,6 +178,30 @@ func (b *Board) evaluateWhite() {
 	for piece := range b.WhitePieces {
 		piece.SetActiveSquares(b)
 		b.Value += piece.Value()
+	}
+	king := b.GetKing(BLACK)
+	checked, checkers := king.IsInCheck(b)
+	b.Check = checked
+	b.Checkers = checkers
+}
+
+func (b *Board) evaluateBlack() {
+	for piece := range b.BlackPieces {
+		piece.SetActiveSquares(b)
+		b.Value += piece.Value()
+	}
+	king := b.GetKing(WHITE)
+	checked, checkers := king.IsInCheck(b)
+	b.Check = checked
+	b.Checkers = checkers
+}
+
+func (b *Board) resetPins() {
+	for wp := range b.WhitePieces {
+		wp.ResetPin()
+	}
+	for bp := range b.BlackPieces {
+		bp.ResetPin()
 	}
 }
 
@@ -201,7 +224,8 @@ func (b *Board) GetAllValidMoves(color string) []*Move {
 	return moves
 }
 
-func (b *Board) CheckmateDetected(color string, king *King) bool {
+func (b *Board) CheckmateDetected(color string) bool {
+	king := b.GetKing(color)
 	checked, checkers := king.IsInCheck(b)
 	if !checked {
 		return false
@@ -291,6 +315,16 @@ func (b *Board) addKingAttackedSquares(king *King, attackedSqs map[*Square][]Pie
 	}
 }
 
+func (b *Board) checkSquarePastKing(row, col int, coords [2]int) (*Square, bool) {
+	candRow := row + coords[0]
+	candCol := col + coords[1]
+	if squareExists(candRow, candCol) {
+		cand := b.getSquare(candRow, candCol)
+		return cand, true
+	}
+	return nil, false
+}
+
 func addAttackedSquare(sq *Square, piece Piece, attackeds map[*Square][]Piece) {
 	_, ok := attackeds[sq]
 	if ok {
@@ -338,7 +372,8 @@ func (b *Board) verticalPath(bigRow, smallRow, col int) map[*Square]bool {
 
 func (b *Board) diagonalPath(from, to *Square) map[*Square]bool {
 	path := make(map[*Square]bool)
-
+	fmt.Println("FROM: ", from.Name)
+	fmt.Println("TO: ", to.Name)
 	rows := orderCoords(from.Row, to.Row)
 	cols := orderCoords(from.Column, to.Column)
 	for i := range rows {
@@ -466,161 +501,6 @@ func (b *Board) SetupPieces() {
 		}
 	}
 	b.Evaluate(WHITE)
-}
-
-func (b *Board) MovePiece(move *Move) (string, *Error) {
-	receipt := ""
-	if move.IsValid(b) {
-		switch piece := move.Piece.(type) {
-		case *Pawn:
-			piece.Moved = true
-		case *King:
-			piece.Moved = true
-		case *Rook:
-			piece.Moved = true
-		}
-
-		switch move.Type {
-		case FREE:
-			receipt = b.executeFreeMove(move)
-			b.Evaluate(move.Turn)
-			return receipt, nil
-		case CAPTURE:
-			receipt = b.executeCaptureMove(move)
-			b.Evaluate(move.Turn)
-			return receipt, nil
-		case EN_PASSANT:
-			receipt = b.executeEnPassantMove(move)
-			b.Evaluate(move.Turn)
-			return receipt, nil
-		case CASTLE:
-			receipt = b.executeCastleMove(move)
-			b.Evaluate(move.Turn)
-			return receipt, nil
-		}
-	}
-
-	return b.invalidMove(move)
-}
-
-func (b *Board) invalidMove(move *Move) (string, *Error) {
-	gameError := NewError(
-		"%s: %s -> %s is not a valid move",
-		move.Piece.Type(),
-		move.From.Name,
-		move.To.Name,
-	)
-	return gameError.Message, gameError
-}
-
-func (b *Board) executeFreeMove(move *Move) string {
-	receipt := fmt.Sprintf("%s: %s -> %s", move.Piece.Type(), move.From.Name, move.To.Name)
-
-	if move.Piece.Type() == PAWN && (move.To.Row == ROW_8 || move.To.Row == ROW_1) {
-		return b.executePawnPromotion(move, receipt)
-	} else {
-		move.From.SetPiece(&Null{})
-		b.SetPiece(move.Piece, move.To)
-		b.Moves = append(b.Moves, move)
-
-		return receipt
-	}
-}
-
-func (b *Board) executeCaptureMove(move *Move) string {
-	capturedPiece := move.To.Piece
-
-	receipt := fmt.Sprintf(
-		"%s TAKES %s: %s -> %s",
-		move.Piece.Type(),
-		capturedPiece.Type(),
-		move.From.Name,
-		move.To.Name,
-	)
-
-	b.RemovePiece(capturedPiece, move.To)
-
-	if move.Piece.Type() == PAWN && (move.To.Row == ROW_8 || move.To.Row == ROW_1) {
-		return b.executePawnPromotion(move, receipt)
-
-	} else {
-		move.From.Piece = &Null{}
-		b.SetPiece(move.Piece, move.To)
-		b.Moves = append(b.Moves, move)
-
-		return receipt
-	}
-
-}
-
-func (b *Board) executePawnPromotion(move *Move, receipt string) string {
-	b.RemovePiece(move.From.Piece, move.From)
-	b.SetPiece(move.Promotion, move.To)
-	b.Moves = append(b.Moves, move)
-
-	receipt += fmt.Sprintf(" (PROMOTION: %s)", move.Promotion.Type())
-	return receipt
-
-}
-
-func (b *Board) executeEnPassantMove(move *Move) string {
-	captureSq := b.Squares[move.Piece.Square().Row][move.To.Column]
-	capturedPiece := captureSq.Piece
-	b.RemovePiece(capturedPiece, captureSq)
-
-	move.To.SetPiece(move.Piece)
-	move.From.SetPiece(&Null{})
-	move.Piece.SetSquare(move.To)
-	b.Moves = append(b.Moves, move)
-
-	receipt := fmt.Sprintf(
-		"PAWN TAKES PAWN (EN PASSANT): %s -> %s",
-		move.From.Name,
-		move.To.Name,
-	)
-	return receipt
-}
-
-func (b *Board) executeCastleMove(move *Move) string {
-	king := move.Piece
-	b.SetPiece(king, move.To)
-	move.From.SetPiece(&Null{})
-	b.Moves = append(b.Moves, move)
-
-	switch king.Square().Name {
-	case "G8":
-		h8 := b.Squares[ROW_8][COL_H]
-		f8 := b.Squares[ROW_8][COL_F]
-		b.castleRook(h8, f8)
-
-		return "KING CASTLES SHORT"
-
-	case "G1":
-		h1 := b.Squares[ROW_1][COL_H]
-		f1 := b.Squares[ROW_1][COL_F]
-		b.castleRook(h1, f1)
-		return "KING CASTLES SHORT"
-
-	case "C8":
-		a8 := b.Squares[ROW_8][COL_A]
-		d8 := b.Squares[ROW_8][COL_D]
-		b.castleRook(a8, d8)
-
-		return "KING CASTLES LONG"
-	case "C1":
-		a1 := b.Squares[ROW_1][COL_A]
-		d1 := b.Squares[ROW_1][COL_D]
-		b.castleRook(a1, d1)
-		return "KING CASTLES LONG"
-	default:
-		return ""
-	}
-}
-
-func (b *Board) castleRook(from *Square, to *Square) {
-	rook := from.Piece
-	b.SetPiece(rook, to)
-	from.Piece = &Null{}
 }
 
 func (b *Board) RemovePiece(piece Piece, sq *Square) {

@@ -120,12 +120,10 @@ type Bot struct {
 
 func (b *Bot) Name() string { return b.name }
 
-func (b *Bot) CreateMove(board *board.Board) string {
+func (b *Bot) CreateMove(board *board.Board) *board.Move {
 	valids := board.GetAllValidMoves(b.Color)
 	randIdx := rand.Intn(len(valids))
-	randMove := valids[randIdx]
-	moveMsg := fmt.Sprintf("%s %s %s", randMove.Piece.Type(), randMove.From.Name, randMove.To.Name)
-	return moveMsg
+	return valids[randIdx]
 }
 
 type Game struct {
@@ -144,7 +142,7 @@ func New(b *board.Board) *Game {
 	}
 }
 
-func (g *Game) Run(in io.Reader, out io.Writer) {
+/*func (g *Game) Run(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
 
 	for {
@@ -176,7 +174,7 @@ func (g *Game) Run(in io.Reader, out io.Writer) {
 			break
 		}
 	}
-}
+}*/
 
 func (g *Game) createMove(msg string) (*board.Move, *Error) {
 
@@ -216,21 +214,23 @@ func (g *Game) createMove(msg string) (*board.Move, *Error) {
 
 }
 
-func (g *Game) ExecuteTurn(move *board.Move) string {
+func (g *Game) ExecuteTurn(move *board.Move) (string, *Error) {
 	moveColor := move.Piece.Color()
-	if moveColor != g.Turn {
-		msg := fmt.Sprintf("%s ERROR: It is %s's turn to move", move.Piece.Color(), g.Turn)
-		return msg
-	}
 
 	receipt, err := g.Board.MovePiece(move)
 	if err != nil {
+		if g.Board.Check {
+			receipt += " (KING IN CHECK)"
+		}
+		if move.Piece.Pin() != nil {
+			receipt += " (PIECE IS PINNED)"
+		}
 		boardErr := NewError("BOARD ERROR %s: %s", moveColor, receipt)
-		return boardErr.Message
+		return boardErr.Message, boardErr
 	}
 	receipt = g.Turn + " " + receipt
 	if g.Board.Checkmate {
-		return fmt.Sprintf("%s\nCHECKMATE: %s has won", receipt, g.Turn)
+		return fmt.Sprintf("%s\nCHECKMATE: %s has won", receipt, g.Turn), nil
 	}
 
 	if g.Board.Check {
@@ -239,7 +239,7 @@ func (g *Game) ExecuteTurn(move *board.Move) string {
 
 	receipt += fmt.Sprintf("\nBOARD VALUE: %f", g.Board.Value)
 	g.nextTurn()
-	return receipt
+	return receipt, nil
 }
 
 func (g *Game) nextTurn() {

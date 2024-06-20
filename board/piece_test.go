@@ -224,7 +224,7 @@ func TestCheckmate(t *testing.T) {
 
 	for _, tt := range tests {
 		tt.board.Evaluate(tt.turn)
-		if tt.board.CheckmateDetected(tt.testKing.Color(), tt.testKing) != tt.expected {
+		if tt.board.CheckmateDetected(tt.testKing.Color()) != tt.expected {
 			t.Fatalf(
 				"%s KING on %s: Checkmate should be %t",
 				tt.testKing.color,
@@ -440,7 +440,7 @@ func TestAbsolutePins(t *testing.T) {
 			"PAWN: D7 -> D6 is not a valid move",
 		},
 		{
-			board2,
+			board,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteDPawn,
@@ -849,7 +849,7 @@ func TestCastle(t *testing.T) {
 
 	for _, tt := range tests {
 		ogRookSq := tt.rook.Square()
-		tt.board.Evaluate(tt.input.Turn)
+		tt.board.Evaluate(ENEMY[tt.input.Turn])
 		receipt, err := tt.board.MovePiece(tt.input)
 
 		if receipt != tt.expected {
