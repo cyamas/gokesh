@@ -146,6 +146,9 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 		"to":      []int{move.To.Row, move.To.Column},
 		"receipt": receipt,
 	}
+	if move.Promotion != nil {
+		data["promotion"] = move.Promotion.Type()
+	}
 	json, err := json.Marshal(data)
 	if err != nil {
 		http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)

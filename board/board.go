@@ -217,6 +217,9 @@ func (b *Board) GetAllValidMoves(color string) []*Move {
 					From:  piece.Square(),
 					To:    sq,
 				}
+				if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
+					move.Promotion = &Queen{color: color}
+				}
 				moves = append(moves, move)
 			}
 		}

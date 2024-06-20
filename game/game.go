@@ -122,6 +122,12 @@ func (b *Bot) Name() string { return b.name }
 
 func (b *Bot) CreateMove(board *board.Board) *board.Move {
 	valids := board.GetAllValidMoves(b.Color)
+	for _, move := range valids {
+		if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
+			fmt.Println("THIS SHOULD PRINT")
+			return move
+		}
+	}
 	randIdx := rand.Intn(len(valids))
 	return valids[randIdx]
 }
