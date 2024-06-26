@@ -28,7 +28,7 @@ func RunServer() {
 	router.Get("/botmove", botMove)
 	router.Post("/usermove", userMove)
 	router.Handle("/static/*", http.StripPrefix("/static/", fileServer))
-	http.ListenAndServe(":6969", router)
+	http.ListenAndServe(":3435", router)
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
@@ -55,7 +55,7 @@ func play(w http.ResponseWriter, r *http.Request) {
 			"to":    "none",
 		}
 	} else {
-		move := Game.Bot.CreateMove(Game.Board)
+		move := Game.Bot.Move(Game.Board)
 		Game.ExecuteTurn(move)
 		data = map[string]interface{}{
 			"color": "black",
@@ -105,7 +105,6 @@ func userMove(w http.ResponseWriter, r *http.Request) {
 	}
 	var data map[string]interface{}
 	receipt, gameError := Game.ExecuteTurn(userMove)
-	log.Println(receipt)
 	if gameError != nil {
 		data = map[string]interface{}{
 			"valid":   false,
@@ -118,6 +117,7 @@ func userMove(w http.ResponseWriter, r *http.Request) {
 			"valid":     true,
 			"from":      move.From,
 			"to":        move.To,
+			"eval":      Game.Board.Value,
 			"promotion": move.Promotion,
 			"receipt":   receipt,
 		}
@@ -137,13 +137,14 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 		handleCheckmate(w)
 		return
 	}
-	move := Game.Bot.CreateMove(Game.Board)
+	move := Game.Bot.Move(Game.Board)
 	receipt, _ := Game.ExecuteTurn(move)
 	data := map[string]interface{}{
 		"type":    move.Type,
 		"color":   move.Turn,
 		"from":    []int{move.From.Row, move.From.Column},
 		"to":      []int{move.To.Row, move.To.Column},
+		"eval":    Game.Board.Value,
 		"receipt": receipt,
 	}
 	if move.Promotion != nil {

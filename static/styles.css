@@ -30,6 +30,29 @@ button {
     cursor: pointer;
 }
 
+#board-container {
+    display: flex;
+    width: fit-content;
+    height: fit-content;
+}
+
+#eval-bar {
+    display: flex;
+    flex-direction: column;
+    height: 640px;
+    width: 25px;
+    outline: 2px solid grey;
+    padding: 0;
+    margin: 0;
+    background-color: white;
+}
+
+#black-bar {
+    width 25px;
+    height: 50%;
+    background-color: black;
+}
+
 #board {
     display: grid;
     grid-template-columns: repeat(8, 75px);
@@ -38,6 +61,7 @@ button {
     height: 600px;
     border: 20px solid #5c4033;
 }
+
 .square {
     display: flex;
     justify-content: center;

@@ -16,7 +16,12 @@
         <h1>Gokesh</h1>
         <h3>A chess engine written in Go.</h3>
         <button id="play-btn" onclick="play()">Play</button>
-        <div id="board"></div>
+        <div id="board-container">
+            <div id="eval-bar">
+                <div id="black-bar"></div>
+            </div>
+            <div id="board"></div>
+        </div>
         <button id="flip-btn" onclick="flipBoard()">Flip</button>
         <script src="/static/scripts.js"></script>
     </body>

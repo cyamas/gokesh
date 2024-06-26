@@ -4,6 +4,10 @@ import (
 	"testing"
 )
 
+func TestBestRetreatSquare(t *testing.T) {
+
+}
+
 func TestGetAllValidMoves(t *testing.T) {
 	board1 := New()
 
@@ -223,7 +227,7 @@ func TestCheckmate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt.board.Evaluate(tt.turn)
+		tt.board.Evaluate(ENEMY[tt.turn])
 		if tt.board.CheckmateDetected(tt.testKing.Color()) != tt.expected {
 			t.Fatalf(
 				"%s KING on %s: Checkmate should be %t",
@@ -976,13 +980,12 @@ func TestKingInCheck(t *testing.T) {
 		{WHITE, whiteKing5, board5, false, 0},
 	}
 	for _, tt := range tests {
-		tt.board.Evaluate(tt.turn)
-		checked, checkingPieces := tt.input.IsInCheck(tt.board)
-		if checked != tt.expectedCheck {
+		tt.board.Evaluate(ENEMY[tt.turn])
+		if tt.input.Checked != tt.expectedCheck {
 			t.Fatalf("King is in check should be %t (%s)", tt.expectedCheck, tt.input.Square().Name)
 		}
-		if len(checkingPieces) != tt.expectednumChecks {
-			t.Fatalf("King should have %d checking pieces. Got %d", tt.expectednumChecks, len(checkingPieces))
+		if len(tt.input.Checkers) != tt.expectednumChecks {
+			t.Fatalf("King should have %d checking pieces. Got %d", tt.expectednumChecks, len(tt.input.Checkers))
 		}
 
 	}

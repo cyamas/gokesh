@@ -2,6 +2,8 @@ package board
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 )
 
 const (
@@ -70,62 +72,14 @@ var blackStartSquares = map[string]Piece{
 	"E8": &King{},
 }
 
-type Error struct {
-	Message string
-}
-
-func NewError(format string, a ...interface{}) *Error {
-	return &Error{
-		Message: fmt.Sprintf(format, a...),
-	}
-}
-
-type Square struct {
-	Piece  Piece
-	Row    int
-	Column int
-	Name   string
-}
-
-type Path map[*Square]bool
-
-func (s *Square) SetPiece(piece Piece) {
-	s.Piece = piece
-}
-
-func (s *Square) IsEmpty() bool {
-	if s.Piece.Type() == NULL {
-		return true
-	}
-	return false
-}
-
-func (b *Board) getSquare(row, col int) *Square {
-	return b.Squares[row][col]
-}
-
-func (b *Board) CreatePiece(color string, name string) Piece {
-	switch name {
-	case KNIGHT:
-		return &Knight{color: color}
-	case BISHOP:
-		return &Bishop{color: color}
-	case ROOK:
-		return &Rook{color: color}
-	default:
-		return &Queen{color: color}
-	}
-}
-
 type Board struct {
 	Squares     [][]*Square
 	Moves       []*Move
 	WhitePieces map[Piece]bool
 	BlackPieces map[Piece]bool
 	Checkmate   bool
-	Check       bool
-	Checkers    []Piece
-	Value       float32
+	Value       float64
+	Receipts    []string
 }
 
 func New() *Board {
@@ -156,22 +110,128 @@ func New() *Board {
 	return board
 }
 
+func (b *Board) Copy() *Board {
+	copy := New()
+	for i, row := range copy.Squares {
+		for j, sq := range row {
+			ogSq := b.Squares[i][j]
+			switch piece := ogSq.Piece.(type) {
+			case *Pawn:
+				pawn := &Pawn{color: piece.color, value: piece.value, Moved: piece.Moved}
+				copy.SetPiece(pawn, sq)
+			case *Knight:
+				knight := &Knight{color: piece.color, value: piece.value}
+				copy.SetPiece(knight, sq)
+			case *Bishop:
+				bishop := &Bishop{color: piece.color, value: piece.value}
+				copy.SetPiece(bishop, sq)
+			case *Rook:
+				rook := &Rook{color: piece.color, value: piece.value, Moved: piece.Moved}
+				copy.SetPiece(rook, sq)
+			case *Queen:
+				queen := &Queen{color: piece.color, value: piece.value}
+				copy.SetPiece(queen, sq)
+			case *King:
+				king := &King{color: piece.color, value: piece.value, Moved: piece.Moved}
+				copy.SetPiece(king, sq)
+			default:
+				copy.SetPiece(&Null{}, sq)
+			}
+		}
+	}
+	for _, receipt := range b.Receipts {
+		copy.Receipts = append(copy.Receipts, receipt)
+	}
+	return copy
+}
+
+type Error struct {
+	Message string
+}
+
+func NewError(format string, a ...interface{}) *Error {
+	return &Error{
+		Message: fmt.Sprintf(format, a...),
+	}
+}
+
+type Square struct {
+	Piece       Piece
+	Row         int
+	Column      int
+	Name        string
+	WhiteGuards []Piece
+	BlackGuards []Piece
+}
+
+type Path map[*Square]bool
+
+func (s *Square) GetGuardsAndValue(color string) ([]Piece, float64) {
+	var value float64 = 0.0
+	var guards []Piece
+	if color == WHITE {
+		guards = s.WhiteGuards
+	} else {
+		guards = s.BlackGuards
+	}
+	for _, piece := range guards {
+		value += piece.Value()
+	}
+	return guards, value
+}
+
+func (s *Square) SetPiece(piece Piece) {
+	s.Piece = piece
+}
+
+func (s *Square) IsEmpty() bool {
+	if s.Piece.Type() == NULL {
+		return true
+	}
+	return false
+}
+
+func (b *Board) getSquare(row, col int) *Square {
+	return b.Squares[row][col]
+}
+
+func (b *Board) CreatePiece(color string, name string) Piece {
+	switch name {
+	case KNIGHT:
+		return &Knight{color: color}
+	case BISHOP:
+		return &Bishop{color: color}
+	case ROOK:
+		return &Rook{color: color}
+	default:
+		return &Queen{color: color}
+	}
+}
+
 func (b *Board) Evaluate(turn string) {
 	b.Value = 0.0
+	b.resetCheck(turn)
 	b.resetPins()
 	if turn == WHITE {
 		b.evaluateWhite()
+		blackKing := b.GetKing(BLACK)
+		blackKing.SetCheck(b)
 		b.evaluateBlack()
 		if b.CheckmateDetected(BLACK) {
 			b.Checkmate = true
+			return
 		}
 	} else {
 		b.evaluateBlack()
+		whiteKing := b.GetKing(WHITE)
+		whiteKing.SetCheck(b)
 		b.evaluateWhite()
 		if b.CheckmateDetected(WHITE) {
 			b.Checkmate = true
+			return
 		}
 	}
+	b.setSquareGuards()
 }
 
 func (b *Board) evaluateWhite() {
@@ -179,10 +239,6 @@ func (b *Board) evaluateWhite() {
 		piece.SetActiveSquares(b)
 		b.Value += piece.Value()
 	}
-	king := b.GetKing(BLACK)
-	checked, checkers := king.IsInCheck(b)
-	b.Check = checked
-	b.Checkers = checkers
 }
 
 func (b *Board) evaluateBlack() {
@@ -190,10 +246,152 @@ func (b *Board) evaluateBlack() {
 		piece.SetActiveSquares(b)
 		b.Value += piece.Value()
 	}
-	king := b.GetKing(WHITE)
-	checked, checkers := king.IsInCheck(b)
-	b.Check = checked
-	b.Checkers = checkers
+}
+
+func (b *Board) resetCheck(color string) {
+	king := b.GetKing(color)
+	king.Checked = false
+	king.Checkers = []Piece{}
+}
+
+func (b *Board) BestMove(turn string) *Move {
+	valids := b.GetAllValidMoves(turn)
+	best := b.RandomMove(turn)
+	bestEval := b.SimPosition(best).Value
+
+	for _, move := range valids {
+		simBoard := b.SimPosition(move)
+		eval := simBoard.MiniMax(ENEMY[turn], 2)
+		if turn == WHITE && eval > bestEval {
+			best = move
+			bestEval = eval
+		}
+		if turn == BLACK && eval < bestEval {
+			best = move
+			bestEval = eval
+		}
+	}
+	return best
+}
+
+func (b *Board) SimPosition(move *Move) *Board {
+	simBoard := b.Copy()
+	simBoard.Evaluate(ENEMY[move.Turn])
+	simMove := move.Copy(simBoard)
+	simBoard.MovePiece(simMove)
+	simBoard.Evaluate(move.Turn)
+
+	return simBoard
+}
+
+func (b *Board) MiniMax(turn string, depth int) float64 {
+	if depth == 0 || b.Checkmate {
+		return b.Value
+	}
+	valids := b.GetAllValidMoves(turn)
+	if turn == WHITE {
+		maxEval := math.Inf(-1)
+		for _, move := range valids {
+			simPos := b.SimPosition(move)
+			eval := simPos.MiniMax(BLACK, depth-1)
+			maxEval = math.Max(maxEval, eval)
+		}
+		return maxEval
+	} else {
+		minEval := math.Inf(1)
+		for _, move := range valids {
+			simPos := b.SimPosition(move)
+			eval := simPos.MiniMax(WHITE, depth-1)
+			minEval = math.Min(minEval, eval)
+		}
+		return minEval
+	}
+}
+
+type Threat struct {
+	Ally     Piece
+	Attacker Piece
+}
+
+func (b *Board) setSquareGuards() {
+	blackAttackedSqs := b.GetAttackedSquares(WHITE)
+	whiteAttackedSqs := b.GetAttackedSquares(BLACK)
+	for _, row := range b.Squares {
+		for _, sq := range row {
+			if blackPieces, ok := blackAttackedSqs[sq]; ok {
+				sq.BlackGuards = blackPieces
+			} else {
+				sq.BlackGuards = []Piece{}
+			}
+			if whitePieces, ok := whiteAttackedSqs[sq]; ok {
+				sq.WhiteGuards = whitePieces
+			} else {
+				sq.WhiteGuards = []Piece{}
+			}
+		}
+	}
+}
+
+func (b *Board) Fen() string {
+	fen := ""
+
+	for i, row := range b.Squares {
+		emptySqs := 0
+		for _, sq := range row {
+			if sq.Piece.Type() != NULL && emptySqs > 0 {
+				fen += strconv.Itoa(emptySqs)
+				emptySqs = 0
+			}
+
+			switch sq.Piece.Type() {
+			case NULL:
+				emptySqs += 1
+			case PAWN:
+				if sq.Piece.Color() == WHITE {
+					fen += "P"
+				} else {
+					fen += "p"
+				}
+			case KNIGHT:
+				if sq.Piece.Color() == WHITE {
+					fen += "N"
+				} else {
+					fen += "n"
+				}
+			case BISHOP:
+				if sq.Piece.Color() == WHITE {
+					fen += "B"
+				} else {
+					fen += "b"
+				}
+			case ROOK:
+				if sq.Piece.Color() == WHITE {
+					fen += "R"
+				} else {
+					fen += "r"
+				}
+			case QUEEN:
+				if sq.Piece.Color() == WHITE {
+					fen += "Q"
+				} else {
+					fen += "q"
+				}
+			case KING:
+				if sq.Piece.Color() == WHITE {
+					fen += "K"
+				} else {
+					fen += "k"
+				}
+			}
+		}
+		if emptySqs > 0 {
+			fen += strconv.Itoa(emptySqs)
+		}
+		if i < 7 {
+			fen += "/"
+		}
+	}
+	return fen
 }
 
 func (b *Board) resetPins() {
@@ -229,28 +427,27 @@ func (b *Board) GetAllValidMoves(color string) []*Move {
 
 func (b *Board) CheckmateDetected(color string) bool {
 	king := b.GetKing(color)
-	checked, checkers := king.IsInCheck(b)
-	if !checked {
+	if !king.Checked {
 		return false
 	}
 
 	kingActives := king.ActiveSquares()
 
 	switch {
-	case len(kingActives) == 0 && len(checkers) > 1:
+	case len(kingActives) == 0 && len(king.Checkers) > 1:
 		return true
 	case len(kingActives) > 0 && king.CanEvadeCheck(kingActives, b):
 		return false
 	default:
-		return !b.piecePreventsCheckmate(king, color, checkers)
+		return !b.piecePreventsCheckmate(king)
 	}
 }
 
-func (b *Board) piecePreventsCheckmate(king *King, color string, checkers []Piece) bool {
-	checker := checkers[0]
+func (b *Board) piecePreventsCheckmate(king *King) bool {
+	checker := king.Checkers[0]
 	checkerSq := checker.Square()
 	checkPath := b.GetAttackedPath(checkerSq, king.Square())
-	allies := b.getAllies(color)
+	allies := b.getAllies(king.Color())
 	for piece := range allies {
 		if piece.Type() == KING {
 			continue
@@ -375,10 +572,16 @@ func (b *Board) verticalPath(bigRow, smallRow, col int) map[*Square]bool {
 
 func (b *Board) diagonalPath(from, to *Square) map[*Square]bool {
 	path := make(map[*Square]bool)
-	fmt.Println("FROM: ", from.Name)
-	fmt.Println("TO: ", to.Name)
 	rows := orderCoords(from.Row, to.Row)
 	cols := orderCoords(from.Column, to.Column)
+	if len(rows) != len(cols) {
+		fmt.Printf("%s (%s %s) -> %s (%s %s)\n", from.Name, from.Piece.Color(), from.Piece.Type(), to.Name, to.Piece.Color(), to.Piece.Type())
+		for _, receipt := range b.Receipts {
+			fmt.Println("RECEIPT: ", receipt)
+		}
+		last := b.LastMove()
+		fmt.Printf("LAST MOVE (%s): %s %s: %s -> %s", last.Turn, last.Piece.Color(), last.Piece.Type(), last.From.Name, last.To.Name)
+	}
 	for i := range rows {
 		sq := b.Squares[rows[i]][cols[i]]
 		path[sq] = true
@@ -412,15 +615,18 @@ func compareCoords(a, b int) (int, int) {
 func (b *Board) GetKing(color string) *King {
 	if color == WHITE {
 		for piece := range b.WhitePieces {
-			if piece.Type() == KING {
-				return piece.(*King)
+			if king, ok := piece.(*King); ok {
+				return king
 			}
 		}
-	}
-	for piece := range b.BlackPieces {
-		if piece.Type() == KING {
-			return piece.(*King)
+		fmt.Println("NO WHITE KING PRESENT")
+	} else {
+		for piece := range b.BlackPieces {
+			if king, ok := piece.(*King); ok {
+				return king
+			}
 		}
+		fmt.Println("NO WHITE KING PRESENT")
 	}
 	return nil
 }
@@ -507,11 +713,10 @@ func (b *Board) SetupPieces() {
 }
 
 func (b *Board) RemovePiece(piece Piece, sq *Square) {
+	b.SetPiece(&Null{}, sq)
 	if piece.Color() == WHITE {
-		b.SetPiece(&Null{}, sq)
 		delete(b.WhitePieces, piece)
 	} else {
-		b.SetPiece(&Null{}, sq)
 		delete(b.BlackPieces, piece)
 	}
 }

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"strings"
 
 	"github.com/cyamas/gokesh/board"
+	"github.com/cyamas/gokesh/bot"
 )
 
 const (
@@ -113,28 +113,9 @@ var ENEMY = map[string]string{
 	BLACK: WHITE,
 }
 
-type Bot struct {
-	name  string
-	Color string
-}
-
-func (b *Bot) Name() string { return b.name }
-
-func (b *Bot) CreateMove(board *board.Board) *board.Move {
-	valids := board.GetAllValidMoves(b.Color)
-	for _, move := range valids {
-		if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
-			fmt.Println("THIS SHOULD PRINT")
-			return move
-		}
-	}
-	randIdx := rand.Intn(len(valids))
-	return valids[randIdx]
-}
-
 type Game struct {
 	Board *board.Board
-	Bot   *Bot
+	Bot   *bot.Bot
 	Turn  string
 }
 
@@ -143,109 +124,39 @@ func New(b *board.Board) *Game {
 	botColor := colors[rand.Intn(2)]
 	return &Game{
 		Board: b,
-		Bot:   &Bot{name: "GOKESH", Color: botColor},
+		Bot:   &bot.Bot{Name: "Gokesh", Color: botColor},
 		Turn:  WHITE,
 	}
 }
 
-/*func (g *Game) Run(in io.Reader, out io.Writer) {
-	scanner := bufio.NewScanner(in)
-
-	for {
-		var moveMsg string
-		turnPrompt := fmt.Sprintf("%s's MOVE: ", g.Turn)
-		fmt.Fprint(out, turnPrompt)
-
-		if g.Bot.Color == g.Turn {
-			moveMsg = g.Bot.CreateMove(g.Board)
-		} else {
-			scanned := scanner.Scan()
-			if !scanned {
-				return
-			}
-			moveMsg = scanner.Text()
-		}
-
-		move, err := g.createMove(moveMsg)
-		if err != nil {
-			fmt.Fprint(out, err.Message+"\n")
-			continue
-		}
-		if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
-			g.handlePawnPromotion(move, out, scanner)
-		}
-		receipt := g.ExecuteTurn(move)
-		fmt.Fprint(out, receipt+"\n")
-		if g.Board.Checkmate {
-			break
-		}
-	}
-}*/
-
-func (g *Game) createMove(msg string) (*board.Move, *Error) {
-
-	moveParts := strings.Split(msg, " ")
-	if len(moveParts) != 3 {
-		err := NewError("ERROR: INVALID INPUT. ENTER A VALID MOVE")
-		return nil, err
-	}
-
-	pieceStr := strings.TrimSpace(moveParts[0])
-	fromStr := strings.TrimSpace(moveParts[1])
-	toStr := strings.TrimSpace(moveParts[2])
-
-	fromCoords := squareMap[fromStr]
-	toCoords := squareMap[toStr]
-
-	fromSq := g.Board.Squares[fromCoords[0]][fromCoords[1]]
-	toSq := g.Board.Squares[toCoords[0]][toCoords[1]]
-	piece := fromSq.Piece
-	if piece.Type() == NULL {
-		err := NewError("ERROR: %s HAS NO PIECE", fromSq.Name)
-		return nil, err
-	}
-	if pieceStr != piece.Type() {
-		err := NewError("ERROR: SQUARE DOES NOT HAVE SPECIFIED PIECE")
-		return nil, err
-	}
-
-	move := &board.Move{
-		Turn:  g.Turn,
-		Piece: piece,
-		From:  fromSq,
-		To:    toSq,
-	}
-
-	return move, nil
-
-}
-
 func (g *Game) ExecuteTurn(move *board.Move) (string, *Error) {
-	moveColor := move.Piece.Color()
-
 	receipt, err := g.Board.MovePiece(move)
 	if err != nil {
-		if g.Board.Check {
-			receipt += " (KING IN CHECK)"
-		}
-		if move.Piece.Pin() != nil {
-			receipt += " (PIECE IS PINNED)"
-		}
-		boardErr := NewError("BOARD ERROR %s: %s", moveColor, receipt)
-		return boardErr.Message, boardErr
+		return g.handleBoardError(receipt, move)
 	}
-	receipt = g.Turn + " " + receipt
+
+	receipt = fmt.Sprintf("%s %s\n", g.Turn, receipt)
 	if g.Board.Checkmate {
 		return fmt.Sprintf("%s\nCHECKMATE: %s has won", receipt, g.Turn), nil
 	}
-
-	if g.Board.Check {
+	if g.Board.GetKing(g.Turn).Checked {
 		receipt += fmt.Sprintf("\n%s IN CHECK", ENEMY[g.Turn])
 	}
 
 	receipt += fmt.Sprintf("\nBOARD VALUE: %f", g.Board.Value)
 	g.nextTurn()
 	return receipt, nil
+}
+
+func (g *Game) handleBoardError(receipt string, move *board.Move) (string, *Error) {
+	if g.Board.GetKing(g.Turn).Checked {
+		receipt += " (KING IN CHECK)"
+	}
+	if move.Piece.Pin() != nil {
+		receipt += " (PIECE IS PINNED)"
+	}
+	boardErr := NewError("BOARD ERROR %s: %s", g.Turn, receipt)
+	return boardErr.Message, boardErr
 }
 
 func (g *Game) nextTurn() {

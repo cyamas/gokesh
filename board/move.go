@@ -1,6 +1,10 @@
 package board
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+	"math/rand"
+)
 
 const (
 	FREE       = "FREE"
@@ -22,6 +26,21 @@ type Move struct {
 	Promotion Piece
 }
 
+func (m *Move) Copy(simBoard *Board) *Move {
+	fromRow := m.From.Row
+	fromCol := m.From.Column
+	toRow := m.To.Row
+	toCol := m.To.Column
+	simFrom := simBoard.Squares[fromRow][fromCol]
+	simTo := simBoard.Squares[toRow][toCol]
+	return &Move{
+		Turn:  m.Turn,
+		Piece: simFrom.Piece,
+		From:  simFrom,
+		To:    simTo,
+	}
+}
+
 func (m *Move) IsValid(board *Board) bool {
 	valids := m.Piece.ActiveSquares()
 	moveType, ok := valids[m.To]
@@ -30,6 +49,16 @@ func (m *Move) IsValid(board *Board) bool {
 		return true
 	}
 	return false
+}
+
+func (m *Move) IsSafe(board *Board) bool {
+	enemyGuards, _ := m.To.GetGuardsAndValue(ENEMY[m.Turn])
+	for _, guard := range enemyGuards {
+		if math.Abs(guard.Value()) < math.Abs(m.Piece.Value()) {
+			return false
+		}
+	}
+	return true
 }
 
 func (b *Board) MovePiece(move *Move) (string, *Error) {
@@ -47,18 +76,22 @@ func (b *Board) MovePiece(move *Move) (string, *Error) {
 		switch move.Type {
 		case FREE:
 			receipt = b.executeFreeMove(move)
+			b.Receipts = append(b.Receipts, receipt)
 			b.Evaluate(move.Turn)
 			return receipt, nil
 		case CAPTURE:
 			receipt = b.executeCaptureMove(move)
+			b.Receipts = append(b.Receipts, receipt)
 			b.Evaluate(move.Turn)
 			return receipt, nil
 		case EN_PASSANT:
 			receipt = b.executeEnPassantMove(move)
+			b.Receipts = append(b.Receipts, receipt)
 			b.Evaluate(move.Turn)
 			return receipt, nil
 		case CASTLE:
 			receipt = b.executeCastleMove(move)
+			b.Receipts = append(b.Receipts, receipt)
 			b.Evaluate(move.Turn)
 			return receipt, nil
 		}
@@ -119,10 +152,12 @@ func (b *Board) executeCaptureMove(move *Move) string {
 
 func (b *Board) executePawnPromotion(move *Move, receipt string) string {
 	b.RemovePiece(move.From.Piece, move.From)
-	b.SetPiece(move.Promotion, move.To)
+	queen := &Queen{color: move.Turn}
+	queen.SetValue()
+	b.SetPiece(queen, move.To)
 	b.Moves = append(b.Moves, move)
 
-	receipt += fmt.Sprintf(" (PROMOTION: %s)", move.Promotion.Type())
+	receipt += fmt.Sprintf(" (PROMOTION: QUEEN)")
 	return receipt
 
 }
@@ -185,4 +220,15 @@ func (b *Board) castleRook(from *Square, to *Square) {
 	rook := from.Piece
 	b.SetPiece(rook, to)
 	from.Piece = &Null{}
+}
+
+func (b *Board) RandomMove(color string) *Move {
+	valids := b.GetAllValidMoves(color)
+	for {
+		randIdx := rand.Intn(len(valids))
+		cand := valids[randIdx]
+		if cand.IsSafe(b) {
+			return cand
+		}
+	}
 }

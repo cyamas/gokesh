@@ -92,7 +92,7 @@ function play() {
     piece.style.cursor = "pointer";
   });
 
-  let url = "http://localhost:6969/play";
+  let url = "http://localhost:3435/play";
   fetch(url)
     .then((response) => {
       if (!response.ok) {
@@ -140,7 +140,7 @@ function setUserMoveToSq(piece) {
 }
 
 function sendMove() {
-  const url = "http://localhost:6969/usermove";
+  const url = "http://localhost:3435/usermove";
 
   let move = {
     from: userMove["from"],
@@ -206,7 +206,7 @@ function getToSquare(move) {
 }
 
 function getBotMove() {
-  const url = "http://localhost:6969/botmove";
+  const url = "http://localhost:3435/botmove";
 
   fetch(url)
     .then((response) => {
@@ -257,6 +257,17 @@ function updateBoard(data) {
   if (data["promotion"] === "QUEEN") {
     handlePawnPromotion(toSq, fromPiece);
   }
+
+  updateEvalBar(data["eval"]);
+}
+
+function updateEvalBar(eval) {
+  let evalBar = document.getElementById("eval-bar");
+
+  let rounded = Math.round(eval);
+  let blackBar = document.getElementById("black-bar");
+  let height = (20 - rounded) * 2.5;
+  blackBar.style.height = height + "%";
 }
 
 function handlePawnPromotion(toSq, fromPiece) {
