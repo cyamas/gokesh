@@ -230,6 +230,11 @@ function updateBoard(data) {
     alert(msg);
     location.reload();
   }
+  if (data["type"] === "STALEMATE") {
+    let msg = "Stalemate. Game ends in a draw";
+    alert(msg);
+    location.reload();
+  }
   let fromRow = data["from"][0];
   let fromCol = data["from"][1];
   let toRow = data["to"][0];
@@ -262,8 +267,6 @@ function updateBoard(data) {
 }
 
 function updateEvalBar(eval) {
-  let evalBar = document.getElementById("eval-bar");
-
   let rounded = Math.round(eval);
   let blackBar = document.getElementById("black-bar");
   let height = (20 - rounded) * 2.5;

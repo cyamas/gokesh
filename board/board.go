@@ -2,7 +2,6 @@ package board
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 )
 
@@ -78,6 +77,7 @@ type Board struct {
 	WhitePieces map[Piece]bool
 	BlackPieces map[Piece]bool
 	Checkmate   bool
+	Stalemate   bool
 	Value       float64
 	Receipts    []string
 }
@@ -208,104 +208,10 @@ func (b *Board) CreatePiece(color string, name string) Piece {
 	}
 }
 
-func (b *Board) Evaluate(turn string) {
-	b.Value = 0.0
-	b.resetCheck(turn)
-	b.resetPins()
-	if turn == WHITE {
-		b.evaluateWhite()
-		blackKing := b.GetKing(BLACK)
-		blackKing.SetCheck(b)
-		b.evaluateBlack()
-		if b.CheckmateDetected(BLACK) {
-			b.Checkmate = true
-			return
-		}
-	} else {
-		b.evaluateBlack()
-		whiteKing := b.GetKing(WHITE)
-		whiteKing.SetCheck(b)
-		b.evaluateWhite()
-		if b.CheckmateDetected(WHITE) {
-			b.Checkmate = true
-			return
-		}
-	}
-	b.setSquareGuards()
-}
-
-func (b *Board) evaluateWhite() {
-	for piece := range b.WhitePieces {
-		piece.SetActiveSquares(b)
-		b.Value += piece.Value()
-	}
-}
-
-func (b *Board) evaluateBlack() {
-	for piece := range b.BlackPieces {
-		piece.SetActiveSquares(b)
-		b.Value += piece.Value()
-	}
-}
-
 func (b *Board) resetCheck(color string) {
 	king := b.GetKing(color)
 	king.Checked = false
 	king.Checkers = []Piece{}
-}
-
-func (b *Board) BestMove(turn string) *Move {
-	valids := b.GetAllValidMoves(turn)
-	best := b.RandomMove(turn)
-	bestEval := b.SimPosition(best).Value
-
-	for _, move := range valids {
-		simBoard := b.SimPosition(move)
-		eval := simBoard.MiniMax(ENEMY[turn], 2)
-		if turn == WHITE && eval > bestEval {
-			best = move
-			bestEval = eval
-		}
-		if turn == BLACK && eval < bestEval {
-			best = move
-			bestEval = eval
-		}
-	}
-	return best
-}
-
-func (b *Board) SimPosition(move *Move) *Board {
-	simBoard := b.Copy()
-	simBoard.Evaluate(ENEMY[move.Turn])
-	simMove := move.Copy(simBoard)
-	simBoard.MovePiece(simMove)
-	simBoard.Evaluate(move.Turn)
-
-	return simBoard
-}
-
-func (b *Board) MiniMax(turn string, depth int) float64 {
-	if depth == 0 || b.Checkmate {
-		return b.Value
-	}
-	valids := b.GetAllValidMoves(turn)
-	if turn == WHITE {
-		maxEval := math.Inf(-1)
-		for _, move := range valids {
-			simPos := b.SimPosition(move)
-			eval := simPos.MiniMax(BLACK, depth-1)
-			maxEval = math.Max(maxEval, eval)
-		}
-		return maxEval
-	} else {
-		minEval := math.Inf(1)
-		for _, move := range valids {
-			simPos := b.SimPosition(move)
-			eval := simPos.MiniMax(WHITE, depth-1)
-			minEval = math.Min(minEval, eval)
-		}
-		return minEval
-	}
 }
 
 type Threat struct {
@@ -441,6 +347,16 @@ func (b *Board) CheckmateDetected(color string) bool {
 	default:
 		return !b.piecePreventsCheckmate(king)
 	}
+}
+
+func (b *Board) StalemateDetected(color string) bool {
+	allies := b.getAllies(color)
+	for ally := range allies {
+		if len(ally.ActiveSquares()) != 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (b *Board) piecePreventsCheckmate(king *King) bool {

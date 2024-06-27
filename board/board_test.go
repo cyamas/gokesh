@@ -1,55 +1,8 @@
 package board
 
 import (
-	"fmt"
 	"testing"
 )
-
-func TestBestMove(t *testing.T) {
-	board := New()
-
-	e8 := board.Squares[ROW_8][COL_E]
-	blackKing := &King{color: BLACK}
-
-	e1 := board.Squares[ROW_1][COL_E]
-	whiteKing := &King{color: WHITE}
-
-	e5 := board.Squares[ROW_5][COL_E]
-	whiteEpawn := &Pawn{color: WHITE, Moved: true, value: 1.00}
-
-	d5 := board.Squares[ROW_5][COL_D]
-	blackDPawn := &Pawn{color: BLACK, Moved: true, value: -1.00}
-
-	c4 := board.Squares[ROW_4][COL_C]
-	whiteBishop := &Bishop{color: WHITE, value: 3.33}
-
-	f6 := board.Squares[ROW_6][COL_F]
-	blackBishop := &Bishop{color: BLACK, value: -3.33}
-
-	board.SetPiece(whiteKing, e1)
-	board.SetPiece(blackKing, e8)
-	board.SetPiece(whiteEpawn, e5)
-	board.SetPiece(blackDPawn, d5)
-	board.SetPiece(whiteBishop, c4)
-	board.SetPiece(blackBishop, f6)
-
-	tests := []struct {
-		input    string
-		expected string
-	}{
-		{WHITE, "BISHOP: C4 -> B5"},
-		{BLACK, "BISHOP: F6 -> H4"},
-	}
-
-	for _, tt := range tests {
-		board.Evaluate(ENEMY[tt.input])
-		best := board.BestMove(tt.input)
-		receipt := fmt.Sprintf("%s: %s -> %s", best.Piece.Type(), best.From.Name, best.To.Name)
-		if receipt != tt.expected {
-			t.Fatalf("Receipt should be '%s'. Got '%s'", tt.expected, receipt)
-		}
-	}
-}
 
 func TestMoveIsSafe(t *testing.T) {
 	board := New()

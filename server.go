@@ -137,8 +137,20 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 		handleCheckmate(w)
 		return
 	}
+	if Game.Board.Stalemate {
+		handleStalemate(w)
+		return
+	}
 	move := Game.Bot.Move(Game.Board)
 	receipt, _ := Game.ExecuteTurn(move)
+	if Game.Board.Checkmate {
+		handleCheckmate(w)
+		return
+	}
+	if Game.Board.Stalemate {
+		handleStalemate(w)
+		return
+	}
 	data := map[string]interface{}{
 		"type":    move.Type,
 		"color":   move.Turn,
@@ -163,6 +175,20 @@ func handleCheckmate(w http.ResponseWriter) {
 	data := map[string]interface{}{
 		"type":   "CHECKMATE",
 		"winner": Game.Turn,
+	}
+	json, err := json.Marshal(data)
+	if err != nil {
+		http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(json)
+	return
+}
+
+func handleStalemate(w http.ResponseWriter) {
+	data := map[string]interface{}{
+		"type": "STALEMATE",
 	}
 	json, err := json.Marshal(data)
 	if err != nil {
