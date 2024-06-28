@@ -4,6 +4,42 @@ import (
 	"testing"
 )
 
+func TestSetupFromFen(t *testing.T) {
+	board1 := New()
+	board2 := New()
+	board3 := New()
+
+	tests := []struct {
+		board    *Board
+		input    string
+		expected string
+	}{
+		{
+			board1,
+			"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+			"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+		},
+		{
+			board2,
+			"r1b1k1nr/ppp2ppp/2n5/3Pp3/1b6/P1P2N2/1P1qQPPP/RNB1KB1R",
+			"r1b1k1nr/ppp2ppp/2n5/3Pp3/1b6/P1P2N2/1P1qQPPP/RNB1KB1R",
+		},
+		{
+			board3,
+			"r3k1nr/pp3pQp/2p5/3Pp3/1P6/P1N2N1b/5PPP/n1BK1B1R",
+			"r3k1nr/pp3pQp/2p5/3Pp3/1P6/P1N2N1b/5PPP/n1BK1B1R",
+		},
+	}
+
+	for _, tt := range tests {
+		tt.board.SetupFromFen(tt.input)
+		fen := tt.board.Fen()
+		if fen != tt.expected {
+			t.Fatalf("Fen should be %s. Got %s", tt.expected, fen)
+		}
+	}
+}
+
 func TestMoveIsSafe(t *testing.T) {
 	board := New()
 

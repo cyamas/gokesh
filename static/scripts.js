@@ -169,6 +169,7 @@ function sendMove() {
     .then((data) => {
       console.log(data["receipt"]);
       if (data["valid"]) {
+        console.log(data["fen"]);
         updateBoard(data);
         getBotMove();
       }
@@ -217,6 +218,7 @@ function getBotMove() {
     })
     .then((data) => {
       console.log(data["receipt"]);
+      console.log(data["fen"]);
       updateBoard(data);
     })
     .catch((error) => {

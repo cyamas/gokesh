@@ -3,6 +3,7 @@ package board
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -300,6 +301,70 @@ func (b *Board) Fen() string {
 	return fen
 }
 
+func (b *Board) SetupFromFen(fen string) {
+	fen = strings.ReplaceAll(fen, "/", "")
+	runes := []rune(fen)
+	idx := 0
+	runeDigits := map[rune]int{'1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8}
+	empties := 0
+	for _, row := range b.Squares {
+		for _, sq := range row {
+			if empties > 0 {
+				empties--
+			} else {
+				ch := runes[idx]
+				switch ch {
+				case 'p':
+					p := &Pawn{color: BLACK, value: -1.00}
+					if sq.Row != ROW_7 {
+						p.Moved = true
+					}
+					b.SetPiece(p, sq)
+				case 'P':
+					p := &Pawn{color: WHITE, value: 1.00}
+					if sq.Row != ROW_2 {
+						p.Moved = true
+					}
+					b.SetPiece(p, sq)
+				case 'n':
+					kn := &Knight{color: BLACK, value: -3.05}
+					b.SetPiece(kn, sq)
+				case 'N':
+					kn := &Knight{color: WHITE, value: 3.05}
+					b.SetPiece(kn, sq)
+				case 'b':
+					bish := &Bishop{color: BLACK, value: -3.33}
+					b.SetPiece(bish, sq)
+				case 'B':
+					bish := &Bishop{color: WHITE, value: 3.33}
+					b.SetPiece(bish, sq)
+				case 'r':
+					r := &Rook{color: BLACK, value: -5.63, Moved: true}
+					b.SetPiece(r, sq)
+				case 'R':
+					r := &Rook{color: WHITE, value: 5.63, Moved: true}
+					b.SetPiece(r, sq)
+				case 'q':
+					q := &Queen{color: BLACK, value: -9.5}
+					b.SetPiece(q, sq)
+				case 'Q':
+					q := &Queen{color: WHITE, value: 9.5}
+					b.SetPiece(q, sq)
+				case 'k':
+					k := &King{color: BLACK, value: -99.9}
+					b.SetPiece(k, sq)
+				case 'K':
+					k := &King{color: WHITE, value: 99.9}
+					b.SetPiece(k, sq)
+				default:
+					empties = runeDigits[ch] - 1
+				}
+				idx++
+			}
+		}
+	}
+}
+
 func (b *Board) resetPins() {
 	for wp := range b.WhitePieces {
 		wp.ResetPin()
@@ -469,8 +534,11 @@ func (b *Board) GetAttackedPath(from, to *Square) map[*Square]bool {
 func (b *Board) horizontalPath(bigCol, smallCol, row int) map[*Square]bool {
 	path := make(map[*Square]bool)
 
-	for col := smallCol; col < bigCol; col++ {
+	for col := smallCol; col <= bigCol; col++ {
 		sq := b.Squares[row][col]
+		if sq.Piece.Type() == KING {
+			continue
+		}
 		path[sq] = true
 	}
 	return path
@@ -479,8 +547,11 @@ func (b *Board) horizontalPath(bigCol, smallCol, row int) map[*Square]bool {
 func (b *Board) verticalPath(bigRow, smallRow, col int) map[*Square]bool {
 	path := make(map[*Square]bool)
 
-	for row := smallRow; row < bigRow; row++ {
+	for row := smallRow; row <= bigRow; row++ {
 		sq := b.Squares[row][col]
+		if sq.Piece.Type() == KING {
+			continue
+		}
 		path[sq] = true
 	}
 	return path
@@ -490,14 +561,6 @@ func (b *Board) diagonalPath(from, to *Square) map[*Square]bool {
 	path := make(map[*Square]bool)
 	rows := orderCoords(from.Row, to.Row)
 	cols := orderCoords(from.Column, to.Column)
-	if len(rows) != len(cols) {
-		fmt.Printf("%s (%s %s) -> %s (%s %s)\n", from.Name, from.Piece.Color(), from.Piece.Type(), to.Name, to.Piece.Color(), to.Piece.Type())
-		for _, receipt := range b.Receipts {
-			fmt.Println("RECEIPT: ", receipt)
-		}
-		last := b.LastMove()
-		fmt.Printf("LAST MOVE (%s): %s %s: %s -> %s", last.Turn, last.Piece.Color(), last.Piece.Type(), last.From.Name, last.To.Name)
-	}
 	for i := range rows {
 		sq := b.Squares[rows[i]][cols[i]]
 		path[sq] = true
@@ -542,7 +605,7 @@ func (b *Board) GetKing(color string) *King {
 				return king
 			}
 		}
-		fmt.Println("NO WHITE KING PRESENT")
+		fmt.Println("NO BLACK KING PRESENT")
 	}
 	return nil
 }

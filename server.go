@@ -120,6 +120,7 @@ func userMove(w http.ResponseWriter, r *http.Request) {
 			"eval":      Game.Board.Value,
 			"promotion": move.Promotion,
 			"receipt":   receipt,
+			"fen":       Game.Board.Fen(),
 		}
 	}
 
@@ -158,6 +159,7 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 		"to":      []int{move.To.Row, move.To.Column},
 		"eval":    Game.Board.Value,
 		"receipt": receipt,
+		"fen":     Game.Board.Fen(),
 	}
 	if move.Promotion != nil {
 		data["promotion"] = move.Promotion.Type()

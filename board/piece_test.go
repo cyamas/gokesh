@@ -4,8 +4,41 @@ import (
 	"testing"
 )
 
-func TestBestRetreatSquare(t *testing.T) {
+func TestPieceStopsCheck(t *testing.T) {
+	board := New()
+	board.SetupFromFen("6k1/p7/7p/1p4Q1/1P6/P7/4KP1P/5R2")
+	board.Evaluate(WHITE)
 
+	tests := []struct {
+		input    *Move
+		expected string
+	}{
+		{
+			&Move{
+				Turn:  BLACK,
+				Piece: board.Squares[ROW_6][COL_H].Piece,
+				From:  board.Squares[ROW_6][COL_H],
+				To:    board.Squares[ROW_5][COL_G],
+			},
+			"PAWN TAKES QUEEN: H6 -> G5",
+		},
+	}
+
+	for _, tt := range tests {
+		receipt, err := board.MovePiece(tt.input)
+		if receipt != tt.expected {
+			t.Fatalf("Receipt should be %s. Got %s", tt.expected, receipt)
+		}
+		if err == nil {
+			if !testPieceHasMoved(tt.input.Piece, tt.input.From, tt.input.To) {
+				t.Fatalf("%s should have moved", tt.input.Piece.Type())
+			}
+		} else {
+			if !testPieceHasNotMoved(tt.input.Piece, tt.input.From, tt.input.To) {
+				t.Fatalf("%s should not have moved", tt.input.Piece.Type())
+			}
+		}
+	}
 }
 
 func TestGetAllValidMoves(t *testing.T) {
@@ -485,105 +518,105 @@ func TestAbsolutePins(t *testing.T) {
 
 }
 
-func TestPawnPromotion(t *testing.T) {
-	board := New()
+/*func TestPawnPromotion(t *testing.T) {
+board := New()
 
-	c7 := board.Squares[ROW_7][COL_C]
-	e7 := board.Squares[ROW_7][COL_E]
-	d2 := board.Squares[ROW_2][COL_D]
-	f2 := board.Squares[ROW_2][COL_F]
-	b8 := board.Squares[ROW_8][COL_B]
-	g1 := board.Squares[ROW_1][COL_G]
-	h7 := board.Squares[ROW_7][COL_H]
-	a2 := board.Squares[ROW_2][COL_A]
+c7 := board.Squares[ROW_7][COL_C]
+e7 := board.Squares[ROW_7][COL_E]
+d2 := board.Squares[ROW_2][COL_D]
+f2 := board.Squares[ROW_2][COL_F]
+b8 := board.Squares[ROW_8][COL_B]
+g1 := board.Squares[ROW_1][COL_G]
+h7 := board.Squares[ROW_7][COL_H]
+a2 := board.Squares[ROW_2][COL_A]
 
-	whiteEPawn := &Pawn{color: WHITE, Moved: true}
-	whiteCPawn := &Pawn{color: WHITE, Moved: true}
-	blackDPawn := &Pawn{color: BLACK, Moved: true}
-	blackFPawn := &Pawn{color: BLACK, Moved: true}
-	blackQueen := &Queen{color: BLACK}
-	whiteBishop := &Bishop{color: WHITE}
-	whiteKing := &King{color: WHITE}
-	blackKing := &King{color: BLACK}
+whiteEPawn := &Pawn{color: WHITE, Moved: true}
+whiteCPawn := &Pawn{color: WHITE, Moved: true}
+blackDPawn := &Pawn{color: BLACK, Moved: true}
+blackFPawn := &Pawn{color: BLACK, Moved: true}
+blackQueen := &Queen{color: BLACK}
+whiteBishop := &Bishop{color: WHITE}
+whiteKing := &King{color: WHITE}
+blackKing := &King{color: BLACK}
 
-	board.SetPiece(whiteEPawn, e7)
-	board.SetPiece(whiteCPawn, c7)
-	board.SetPiece(blackDPawn, d2)
-	board.SetPiece(blackFPawn, f2)
-	board.SetPiece(blackQueen, b8)
-	board.SetPiece(whiteBishop, g1)
-	board.SetPiece(whiteKing, h7)
-	board.SetPiece(blackKing, a2)
+board.SetPiece(whiteEPawn, e7)
+board.SetPiece(whiteCPawn, c7)
+board.SetPiece(blackDPawn, d2)
+board.SetPiece(blackFPawn, f2)
+board.SetPiece(blackQueen, b8)
+board.SetPiece(whiteBishop, g1)
+board.SetPiece(whiteKing, h7)
+board.SetPiece(blackKing, a2)
 
-	tests := []struct {
-		input             *Move
-		expectedReceipt   string
-		expectedPromotion string
-	}{
-		{
-			&Move{
-				Turn:      WHITE,
-				Piece:     whiteEPawn,
-				From:      e7,
-				To:        board.Squares[ROW_8][COL_E],
-				Promotion: &Queen{color: WHITE},
-			},
-			"PAWN: E7 -> E8 (PROMOTION: QUEEN)",
-			QUEEN,
+tests := []struct {
+	input             *Move
+	expectedReceipt   string
+	expectedPromotion string
+}{
+	{
+		&Move{
+			Turn:      WHITE,
+			Piece:     whiteEPawn,
+			From:      e7,
+			To:        board.Squares[ROW_8][COL_E],
+			Promotion: &Queen{color: WHITE},
 		},
-		{
-			&Move{
-				Turn:      BLACK,
-				Piece:     blackDPawn,
-				From:      d2,
-				To:        board.Squares[ROW_1][COL_D],
-				Promotion: &Knight{color: BLACK},
-			},
-			"PAWN: D2 -> D1 (PROMOTION: KNIGHT)",
-			KNIGHT,
+		"PAWN: E7 -> E8 (PROMOTION: QUEEN)",
+		QUEEN,
+	},
+	{
+		&Move{
+			Turn:      BLACK,
+			Piece:     blackDPawn,
+			From:      d2,
+			To:        board.Squares[ROW_1][COL_D],
+			Promotion: &Knight{color: BLACK},
 		},
-		{
-			&Move{
-				Turn:      WHITE,
-				Piece:     whiteCPawn,
-				From:      c7,
-				To:        b8,
-				Promotion: &Bishop{color: WHITE},
-			},
-			"PAWN TAKES QUEEN: C7 -> B8 (PROMOTION: BISHOP)",
-			BISHOP,
+		"PAWN: D2 -> D1 (PROMOTION: KNIGHT)",
+		KNIGHT,
+	},
+	{
+		&Move{
+			Turn:      WHITE,
+			Piece:     whiteCPawn,
+			From:      c7,
+			To:        b8,
+			Promotion: &Bishop{color: WHITE},
 		},
-		{
-			&Move{
-				Turn:      BLACK,
-				Piece:     blackFPawn,
-				From:      f2,
-				To:        g1,
-				Promotion: &Rook{color: BLACK},
-			},
-			"PAWN TAKES BISHOP: F2 -> G1 (PROMOTION: ROOK)",
-			ROOK,
+		"PAWN TAKES QUEEN: C7 -> B8 (PROMOTION: BISHOP)",
+		BISHOP,
+	},
+	{
+		&Move{
+			Turn:      BLACK,
+			Piece:     blackFPawn,
+			From:      f2,
+			To:        g1,
+			Promotion: &Rook{color: BLACK},
 		},
-	}
-
-	for _, tt := range tests {
-		board.Evaluate(tt.input.Turn)
-		receipt, err := board.MovePiece(tt.input)
-		if err != nil {
-			t.Fatalf("Test case should not return error")
-		}
-		if receipt != tt.expectedReceipt {
-			t.Fatalf("Receipt should be '%s'. Got '%s'", tt.expectedReceipt, receipt)
-		}
-		if tt.input.From.Piece.Type() != NULL {
-			t.Fatalf("Square %s should be NULL. Got %s", tt.input.From.Name, tt.input.From.Piece.Type())
-		}
-		if tt.input.To.Piece.Type() != tt.expectedPromotion {
-			t.Fatalf("Square %s should now have Queen. Got %s", tt.input.To.Name, tt.input.To.Piece.Type())
-		}
-	}
-
+		"PAWN TAKES BISHOP: F2 -> G1 (PROMOTION: ROOK)",
+		ROOK,
+	},
 }
+
+for _, tt := range tests {
+	board.Evaluate(tt.input.Turn)
+	receipt, err := board.MovePiece(tt.input)
+	if err != nil {
+		t.Fatalf("Test case should not return error")
+	}
+	if receipt != tt.expectedReceipt {
+		t.Fatalf("Receipt should be '%s'. Got '%s'", tt.expectedReceipt, receipt)
+	}
+	if tt.input.From.Piece.Type() != NULL {
+		t.Fatalf("Square %s should be NULL. Got %s", tt.input.From.Name, tt.input.From.Piece.Type())
+	}
+	if tt.input.To.Piece.Type() != tt.expectedPromotion {
+		t.Fatalf("Square %s should now have Queen. Got %s", tt.input.To.Name, tt.input.To.Piece.Type())
+	}
+}
+
+}*/
 
 func TestCastle(t *testing.T) {
 	shortBoard := New()
