@@ -1,13 +1,39 @@
 package board
 
 import (
+	"fmt"
 	"testing"
 )
+
+func TestKnightCheck(t *testing.T) {
+	board := New()
+	board.SetupFromFen("r1b1kbnr/2p3pp/p4p2/1p1pp3/1q6/2Q2nBN/PPP1PPPP/RN2KB1R")
+	board.Evaluate(BLACK)
+	valids := board.GetAllValidMoves(WHITE)
+	for _, move := range valids {
+		fmt.Println("VALID MOVE: ", move.Piece.Type(), move.From.Name, move.To.Name)
+	}
+	if !board.GetKing(WHITE).Checked {
+		t.Fatalf("King should be checked")
+	}
+}
 
 func TestPieceStopsCheck(t *testing.T) {
 	board := New()
 	board.SetupFromFen("6k1/p7/7p/1p4Q1/1P6/P7/4KP1P/5R2")
 	board.Evaluate(WHITE)
+
+	board2 := New()
+	board2.SetupFromFen("r3r2k/2p2Qpp/p1n5/1p6/8/PB2Nbn1/1PP5/1RN1K1R1")
+	board2.Evaluate(BLACK)
+	move := &Move{
+		Turn:  WHITE,
+		Piece: board2.Squares[ROW_7][COL_F].Piece,
+		From:  board2.Squares[ROW_7][COL_F],
+		To:    board2.Squares[ROW_8][COL_G],
+	}
+	board2.MovePiece(move)
+	board2.Evaluate(WHITE)
 
 	tests := []struct {
 		input    *Move
@@ -21,6 +47,15 @@ func TestPieceStopsCheck(t *testing.T) {
 				To:    board.Squares[ROW_5][COL_G],
 			},
 			"PAWN TAKES QUEEN: H6 -> G5",
+		},
+		{
+			&Move{
+				Turn:  BLACK,
+				Piece: board2.Squares[ROW_8][COL_E].Piece,
+				From:  board2.Squares[ROW_8][COL_E],
+				To:    board2.Squares[ROW_8][COL_G],
+			},
+			"ROOK TAKES QUEEN: E8 -> G8",
 		},
 	}
 
@@ -99,7 +134,7 @@ func TestAttackPath(t *testing.T) {
 	whiteKing1 := &King{color: WHITE}
 	blackKing1 := &King{color: BLACK}
 	whiteBishop1 := &King{color: WHITE}
-	blackRook1 := &King{color: BLACK}
+	blackRook1 := &Rook{color: BLACK}
 	blackBishop1 := &Bishop{color: BLACK}
 	whiteKnight1 := &Knight{color: WHITE}
 
@@ -161,6 +196,9 @@ func TestAttackPath(t *testing.T) {
 		toSq := tt.testKing.Square()
 		attackPath := tt.board.GetAttackedPath(fromSq, toSq)
 		if len(attackPath) != tt.expectedLenPath {
+			for _, sq := range tt.expectedPath {
+				fmt.Println("PATH SQ: ", sq.Name)
+			}
 			t.Fatalf("checkPath should have len %d. Got %d", tt.expectedLenPath, len(attackPath))
 		}
 		for _, sq := range tt.expectedPath {
@@ -1153,11 +1191,17 @@ func TestQueenMove(t *testing.T) {
 	board.SetPiece(blackKing, d7)
 	board.SetPiece(whiteKing, a1)
 
+	board2 := New()
+	board2.SetupFromFen("r3r2k/2p2Qpp/p1n5/1p6/8/PB2Nbn1/1PP5/1RN1K1R1")
+	board2.Evaluate(BLACK)
+
 	tests := []struct {
+		board    *Board
 		input    *Move
 		expected string
 	}{
 		{
+			board,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteQueen,
@@ -1167,6 +1211,7 @@ func TestQueenMove(t *testing.T) {
 			"QUEEN: E3 -> H6 is not a valid move",
 		},
 		{
+			board,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteQueen,
@@ -1176,6 +1221,7 @@ func TestQueenMove(t *testing.T) {
 			"QUEEN: E3 -> B3",
 		},
 		{
+			board,
 			&Move{
 				Turn:  BLACK,
 				Piece: blackQueen,
@@ -1185,6 +1231,7 @@ func TestQueenMove(t *testing.T) {
 			"QUEEN: B6 -> E3",
 		},
 		{
+			board,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteQueen,
@@ -1194,6 +1241,7 @@ func TestQueenMove(t *testing.T) {
 			"QUEEN: B3 -> B6",
 		},
 		{
+			board,
 			&Move{
 				Turn:  BLACK,
 				Piece: blackQueen,
@@ -1203,6 +1251,7 @@ func TestQueenMove(t *testing.T) {
 			"QUEEN TAKES PAWN: E3 -> F4",
 		},
 		{
+			board,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteQueen,
@@ -1212,6 +1261,7 @@ func TestQueenMove(t *testing.T) {
 			"QUEEN TAKES PAWN: B6 -> D6",
 		},
 		{
+			board,
 			&Move{
 				Turn:  BLACK,
 				Piece: blackQueen,
@@ -1220,16 +1270,26 @@ func TestQueenMove(t *testing.T) {
 			},
 			"QUEEN TAKES QUEEN: F4 -> D6",
 		},
+		{
+			board2,
+			&Move{
+				Turn:  WHITE,
+				Piece: board2.Squares[ROW_7][COL_F].Piece,
+				From:  board2.Squares[ROW_7][COL_F],
+				To:    board2.Squares[ROW_8][COL_G],
+			},
+			"QUEEN: F7 -> G8",
+		},
 	}
 
 	for _, tt := range tests {
-		board.Evaluate(tt.input.Turn)
+		tt.board.Evaluate(ENEMY[tt.input.Turn])
 		if tt.input.Piece.Type() != QUEEN {
 			t.Fatalf("Piece should be a %s. Got %s", QUEEN, tt.input.Piece.Type())
 		}
 
 		receipt, err := board.MovePiece(tt.input)
-
+		board.Evaluate(tt.input.Turn)
 		if receipt != tt.expected {
 			t.Fatalf("receipt should be '%s'. Got '%s'", tt.expected, receipt)
 		}

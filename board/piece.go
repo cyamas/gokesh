@@ -717,6 +717,7 @@ func filterBRQActivesForCheck(actives map[*Square]SqActivity, board *Board, king
 
 func calcBRQPinnedActives(piece Piece, dirs map[string][2]int, board *Board) map[*Square]SqActivity {
 	actives := map[*Square]SqActivity{}
+	king := board.GetKing(piece.Color())
 	for _, coords := range dirs {
 		for dist := 1; dist < 8; dist++ {
 			candRow := piece.Square().Row + (coords[0] * dist)
@@ -739,6 +740,9 @@ func calcBRQPinnedActives(piece Piece, dirs map[string][2]int, board *Board) map
 				}
 			}
 		}
+	}
+	if king.Checked {
+		return filterBRQActivesForCheck(actives, board, king)
 	}
 	return actives
 }

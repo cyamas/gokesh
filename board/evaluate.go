@@ -1,6 +1,7 @@
 package board
 
 import (
+	"fmt"
 	"math"
 	"sort"
 )
@@ -73,6 +74,7 @@ func (b *Board) MiniMax(turn string, alpha float64, beta float64, depth int) (*M
 		return nil, b.Value
 	}
 	if b.Checkmate {
+		fmt.Println("CHECKMATE DETECTED")
 		if turn == WHITE {
 			return nil, -99.9
 		} else {
@@ -80,6 +82,7 @@ func (b *Board) MiniMax(turn string, alpha float64, beta float64, depth int) (*M
 		}
 	}
 	if b.Stalemate {
+		fmt.Println("STALEMATE DETECTED")
 		return nil, 0.0
 	}
 
@@ -101,9 +104,10 @@ func (b *Board) MiniMax(turn string, alpha float64, beta float64, depth int) (*M
 			}
 		}
 		return maxMove, maxEval
+
 	} else {
 		minEval := math.Inf(1)
-		minMove := b.RandomMove(turn)
+		minMove := &Move{}
 		valids := b.GetAllValidMoves(turn)
 		for _, move := range valids {
 			sim := b.SimPosition(move)

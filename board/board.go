@@ -546,7 +546,6 @@ func (b *Board) horizontalPath(bigCol, smallCol, row int) map[*Square]bool {
 
 func (b *Board) verticalPath(bigRow, smallRow, col int) map[*Square]bool {
 	path := make(map[*Square]bool)
-
 	for row := smallRow; row <= bigRow; row++ {
 		sq := b.Squares[row][col]
 		if sq.Piece.Type() == KING {
