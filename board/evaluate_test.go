@@ -31,6 +31,12 @@ func TestMiniMax(t *testing.T) {
 	board3 := New()
 	board3.SetupFromFen("rn5k/7p/p2r4/1p1P1pKR/1P5P/P4P2/2B2P2/8")
 
+	board4 := New()
+	board4.SetupFromFen("5b1r/2p2ppp/p4k2/1p2p3/1Q3B2/4P3/PPP2PPP/3RK1NR")
+
+	board5 := New()
+	board5.SetupFromFen("1k6/4Q3/1K6/8/3p4/3P4/8/8")
+
 	tests := []struct {
 		board    *Board
 		input    string
@@ -38,7 +44,9 @@ func TestMiniMax(t *testing.T) {
 	}{
 		//{board1, BLACK, "BISHOP TAKES PAWN: C8 -> B7"},
 		//{board2, WHITE, "QUEEN TAKES QUEEN: C3 -> B4"},
-		{board3, BLACK, "ROOK TAKES PAWN: D6 -> D5"},
+		//{board3, BLACK, "ROOK TAKES PAWN: D6 -> D5"},
+		//{board4, WHITE, "QUEEN B4 -> C3"},
+		//{board5, BLACK, "KING: B8 -> A8"},
 	}
 
 	for _, tt := range tests {

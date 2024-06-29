@@ -9,10 +9,6 @@ func TestKnightCheck(t *testing.T) {
 	board := New()
 	board.SetupFromFen("r1b1kbnr/2p3pp/p4p2/1p1pp3/1q6/2Q2nBN/PPP1PPPP/RN2KB1R")
 	board.Evaluate(BLACK)
-	valids := board.GetAllValidMoves(WHITE)
-	for _, move := range valids {
-		fmt.Println("VALID MOVE: ", move.Piece.Type(), move.From.Name, move.To.Name)
-	}
 	if !board.GetKing(WHITE).Checked {
 		t.Fatalf("King should be checked")
 	}

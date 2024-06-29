@@ -34,44 +34,6 @@ var ENEMY = map[string]string{
 	BLACK: WHITE,
 }
 
-var whiteStartSquares = map[string]Piece{
-	"A2": &Pawn{},
-	"B2": &Pawn{},
-	"C2": &Pawn{},
-	"D2": &Pawn{},
-	"E2": &Pawn{},
-	"F2": &Pawn{},
-	"G2": &Pawn{},
-	"H2": &Pawn{},
-	"B1": &Knight{},
-	"G1": &Knight{},
-	"C1": &Bishop{},
-	"F1": &Bishop{},
-	"A1": &Rook{},
-	"H1": &Rook{},
-	"D1": &Queen{},
-	"E1": &King{},
-}
-
-var blackStartSquares = map[string]Piece{
-	"A7": &Pawn{},
-	"B7": &Pawn{},
-	"C7": &Pawn{},
-	"D7": &Pawn{},
-	"E7": &Pawn{},
-	"F7": &Pawn{},
-	"G7": &Pawn{},
-	"H7": &Pawn{},
-	"B8": &Knight{},
-	"G8": &Knight{},
-	"C8": &Bishop{},
-	"F8": &Bishop{},
-	"A8": &Rook{},
-	"H8": &Rook{},
-	"D8": &Queen{},
-	"E8": &King{},
-}
-
 type Board struct {
 	Squares     [][]*Square
 	Moves       []*Move
@@ -198,14 +160,44 @@ func (b *Board) getSquare(row, col int) *Square {
 
 func (b *Board) CreatePiece(color string, name string) Piece {
 	switch name {
+	case PAWN:
+		p := &Pawn{color: color, value: 1}
+		if color == BLACK {
+			p.value *= float64(-1)
+		}
+		return p
 	case KNIGHT:
-		return &Knight{color: color}
+		kn := &Knight{color: color, value: 3.05}
+		if color == BLACK {
+			kn.value *= float64(-1)
+		}
+		return kn
 	case BISHOP:
-		return &Bishop{color: color}
+		bish := &Bishop{color: color, value: 3.33}
+		if color == BLACK {
+			bish.value *= float64(-1)
+		}
+		return bish
 	case ROOK:
-		return &Rook{color: color}
+		r := &Rook{color: color}
+		if color == BLACK {
+			r.value *= float64(-1)
+		}
+		return r
+	case QUEEN:
+		q := &Queen{color: color}
+		if color == BLACK {
+			q.value *= float64(-1)
+		}
+		return q
+	case KING:
+		k := &King{color: color, value: 99.9}
+		if color == BLACK {
+			k.value *= float64(-1)
+		}
+		return k
 	default:
-		return &Queen{color: color}
+		return &Null{}
 	}
 }
 
@@ -213,11 +205,6 @@ func (b *Board) resetCheck(color string) {
 	king := b.GetKing(color)
 	king.Checked = false
 	king.Checkers = []Piece{}
-}
-
-type Threat struct {
-	Ally     Piece
-	Attacker Piece
 }
 
 func (b *Board) setSquareGuards() {
@@ -374,28 +361,6 @@ func (b *Board) resetPins() {
 	}
 }
 
-func (b *Board) GetAllValidMoves(color string) []*Move {
-	moves := []*Move{}
-	pieces := b.getAllies(color)
-	for piece := range pieces {
-		for sq, activity := range piece.ActiveSquares() {
-			if activity == CAPTURE || activity == FREE {
-				move := &Move{
-					Turn:  color,
-					Piece: piece,
-					From:  piece.Square(),
-					To:    sq,
-				}
-				if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
-					move.Promotion = &Queen{color: color}
-				}
-				moves = append(moves, move)
-			}
-		}
-	}
-	return moves
-}
-
 func (b *Board) CheckmateDetected(color string) bool {
 	king := b.GetKing(color)
 	if !king.Checked {
@@ -417,8 +382,10 @@ func (b *Board) CheckmateDetected(color string) bool {
 func (b *Board) StalemateDetected(color string) bool {
 	allies := b.getAllies(color)
 	for ally := range allies {
-		if len(ally.ActiveSquares()) != 0 {
-			return false
+		for _, activity := range ally.ActiveSquares() {
+			if activity != GUARDED {
+				return false
+			}
 		}
 	}
 	return true
@@ -598,6 +565,10 @@ func (b *Board) GetKing(color string) *King {
 			}
 		}
 		fmt.Println("NO WHITE KING PRESENT")
+		fmt.Println("RECEIPTS")
+		for _, receipt := range b.Receipts {
+			fmt.Println(receipt)
+		}
 	} else {
 		for piece := range b.BlackPieces {
 			if king, ok := piece.(*King); ok {
@@ -605,6 +576,10 @@ func (b *Board) GetKing(color string) *King {
 			}
 		}
 		fmt.Println("NO BLACK KING PRESENT")
+		fmt.Println("RECEIPTS")
+		for _, receipt := range b.Receipts {
+			fmt.Println(receipt)
+		}
 	}
 	return nil
 }

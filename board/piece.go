@@ -507,14 +507,20 @@ func (p *Pawn) addDiagonalSquares(actives map[*Square]SqActivity, board *Board) 
 	if p.pinnedVertically() {
 		return
 	}
-
 	row := p.candidateRow(1)
 	cols := p.candidateCols()
 
+loop:
 	for _, col := range cols {
 		if squareExists(row, col) {
 			cand := board.getSquare(row, col)
 			switch {
+			case p.pinnedDiagonally():
+				pinner := p.pin.Piece
+				if cand.Piece == pinner {
+					actives[cand] = CAPTURE
+				}
+				continue loop
 			case !cand.IsEmpty() && cand.Piece.IsEnemy(p.color):
 				actives[cand] = CAPTURE
 			case cand.IsEmpty() && p.canEnPassant(cand, board):

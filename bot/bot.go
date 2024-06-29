@@ -57,52 +57,6 @@ func (b *Bot) Move(board *board.Board) *board.Move {
 	return board.BestMove(b.Color)
 }
 
-func (b *Bot) handleThreats(threats map[*board.Threat]bool, brd *board.Board) *board.Move {
-	for threat := range threats {
-		ally := threat.Ally
-		guards, _ := ally.Square().GetGuardsAndValue(b.Color)
-		attackers, _ := ally.Square().GetGuardsAndValue(ENEMY[b.Color])
-
-		attackerSq := threat.Attacker.Square()
-		attackerAttackers, allyValue := attackerSq.GetGuardsAndValue(b.Color)
-		attackerGuards, enemyValue := attackerSq.GetGuardsAndValue(ENEMY[b.Color])
-
-		switch {
-		case len(attackerAttackers) == 0 || len(guards) < len(attackers):
-			retreatSq := threat.Ally.BestRetreatSquare(brd)
-			if retreatSq == nil {
-				return brd.RandomMove(b.Color)
-			}
-			return &board.Move{
-				Turn:  b.Color,
-				Piece: threat.Ally,
-				From:  threat.Ally.Square(),
-				To:    retreatSq,
-			}
-		case len(attackerGuards) == len(attackerAttackers):
-			switch {
-			case allyValue <= enemyValue:
-				if b.Color == WHITE {
-					return &board.Move{
-						Turn:  b.Color,
-						Piece: attackerSq.WhiteGuards[0],
-						From:  attackerSq.WhiteGuards[0].Square(),
-						To:    attackerSq,
-					}
-				} else {
-					return &board.Move{
-						Turn:  b.Color,
-						Piece: attackerSq.BlackGuards[0],
-						From:  attackerSq.BlackGuards[0].Square(),
-						To:    attackerSq,
-					}
-				}
-			}
-		}
-	}
-	return brd.RandomMove(b.Color)
-}
-
 func (b *Bot) handleOpening(brd *board.Board) *board.Move {
 	if b.Color == WHITE {
 		if b.Opening == nil {

@@ -228,8 +228,12 @@ function getBotMove() {
 
 function updateBoard(data) {
   if (data["type"] === "CHECKMATE") {
+    console.log(data);
+    movePiece(data["winner"], data["movetype"], data["from"], data["to"]);
     let msg = "Checkmate\n" + data["winner"] + " has won!";
-    alert(msg);
+    setTimeout(function () {
+      alertCheckmate(msg);
+    }, 200);
     location.reload();
   }
   if (data["type"] === "STALEMATE") {
@@ -237,10 +241,19 @@ function updateBoard(data) {
     alert(msg);
     location.reload();
   }
-  let fromRow = data["from"][0];
-  let fromCol = data["from"][1];
-  let toRow = data["to"][0];
-  let toCol = data["to"][1];
+  movePiece(data["color"], data["type"], data["from"], data["to"]);
+  updateEvalBar(data["eval"]);
+}
+
+function alertCheckmate(msg) {
+  alert(msg);
+}
+
+function movePiece(color, moveType, from, to) {
+  let fromRow = from[0];
+  let fromCol = from[1];
+  let toRow = to[0];
+  let toCol = to[1];
 
   let fromSq = document.getElementById(cols[fromCol] + rows[fromRow]);
   let toSq = document.getElementById(cols[toCol] + rows[toRow]);
@@ -250,11 +263,11 @@ function updateBoard(data) {
 
   let nullPiece = newNullPiece();
 
-  if (data["type"] === "ENPASSANT") {
-    handleEnPassant(data);
+  if (moveType === "ENPASSANT") {
+    handleEnPassant(from, to);
   }
-  if (data["type"] === "CASTLE") {
-    handleCastle(data);
+  if (moveType === "CASTLE") {
+    handleCastle(color, to);
   }
 
   toSq.appendChild(fromPiece);
@@ -264,8 +277,6 @@ function updateBoard(data) {
   if (data["promotion"] === "QUEEN") {
     handlePawnPromotion(toSq, fromPiece);
   }
-
-  updateEvalBar(data["eval"]);
 }
 
 function updateEvalBar(eval) {
@@ -293,10 +304,10 @@ function handlePawnPromotion(toSq, fromPiece) {
   toSq.appendChild(queen);
 }
 
-function handleEnPassant(data) {
+function handleEnPassant(from, to) {
   let epNullPiece = newNullPiece();
-  let epCaptureRow = data["from"][0];
-  let epCaptureCol = data["to"][1];
+  let epCaptureRow = from[0];
+  let epCaptureCol = to[1];
   let captureSq = document.getElementById(
     cols[epCaptureCol] + rows[epCaptureRow],
   );
@@ -304,9 +315,9 @@ function handleEnPassant(data) {
   captureSq.appendChild(epNullPiece);
 }
 
-function handleCastle(data) {
-  if (data["color"] === "WHITE") {
-    if (cols[data["to"][1]] === "g") {
+function handleCastle(color, to) {
+  if (color === "WHITE") {
+    if (cols[to[1]] === "g") {
       let f1 = document.getElementById("f1");
       let rookSq = document.getElementById("h1");
       let rook = rookSq.firstChild;
@@ -320,7 +331,7 @@ function handleCastle(data) {
       d1.appendChild(rook);
     }
   } else {
-    if (cols[data["to"][1]] === "g") {
+    if (cols[to[1]] === "g") {
       let f8 = document.getElementById("f8");
       let rookSq = document.getElementById("h8");
       let rook = rookSq.firstChild;

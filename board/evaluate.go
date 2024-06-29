@@ -75,6 +75,9 @@ func (b *Board) MiniMax(turn string, alpha float64, beta float64, depth int) (*M
 	}
 	if b.Checkmate {
 		fmt.Println("CHECKMATE DETECTED")
+		for _, receipt := range b.Receipts {
+			fmt.Println(receipt)
+		}
 		if turn == WHITE {
 			return nil, -99.9
 		} else {
@@ -109,6 +112,9 @@ func (b *Board) MiniMax(turn string, alpha float64, beta float64, depth int) (*M
 		minEval := math.Inf(1)
 		minMove := &Move{}
 		valids := b.GetAllValidMoves(turn)
+		if len(valids) == 0 {
+			return nil, 0.0
+		}
 		for _, move := range valids {
 			sim := b.SimPosition(move)
 			_, eval := sim.MiniMax(WHITE, alpha, beta, depth-1)

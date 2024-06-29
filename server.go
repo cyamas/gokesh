@@ -174,9 +174,13 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCheckmate(w http.ResponseWriter) {
+	last := Game.Board.LastMove()
 	data := map[string]interface{}{
-		"type":   "CHECKMATE",
-		"winner": Game.Turn,
+		"type":     "CHECKMATE",
+		"winner":   Game.Turn,
+		"movetype": last.Type,
+		"from":     []int{last.From.Row, last.From.Column},
+		"to":       []int{last.To.Row, last.To.Column},
 	}
 	json, err := json.Marshal(data)
 	if err != nil {

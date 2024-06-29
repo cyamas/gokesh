@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"sort"
 )
 
 const (
@@ -24,6 +25,48 @@ type Move struct {
 	From      *Square
 	To        *Square
 	Promotion Piece
+	Value     float64
+}
+
+func (b *Board) GetAllValidMoves(color string) []*Move {
+	moves := []*Move{}
+	pieces := b.getAllies(color)
+	for piece := range pieces {
+		for sq, activity := range piece.ActiveSquares() {
+			if activity != GUARDED {
+				move := &Move{
+					Turn:  color,
+					Piece: piece,
+					From:  piece.Square(),
+					To:    sq,
+				}
+				switch activity {
+				case CASTLE:
+					move.Value = float64(0.5)
+				case CAPTURE:
+					move.Value = math.Abs(move.To.Piece.Value())
+				case EN_PASSANT:
+					move.Value = float64(1)
+				}
+
+				if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
+					move.Promotion = &Queen{color: color}
+				}
+				moves = append(moves, move)
+			}
+		}
+	}
+	sort.Slice(moves, func(i, j int) bool {
+		return moves[i].Value > moves[j].Value
+	})
+	return moves
+}
+
+func colorMultiplier(color string) float64 {
+	if color == WHITE {
+		return float64(1)
+	}
+	return float64(-1)
 }
 
 func (m *Move) Copy(simBoard *Board) *Move {
