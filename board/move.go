@@ -40,14 +40,7 @@ func (b *Board) GetAllValidMoves(color string) []*Move {
 					From:  piece.Square(),
 					To:    sq,
 				}
-				switch activity {
-				case CASTLE:
-					move.Value = float64(0.5)
-				case CAPTURE:
-					move.Value = math.Abs(move.To.Piece.Value())
-				case EN_PASSANT:
-					move.Value = float64(1)
-				}
+				move.SetValue(activity)
 
 				if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
 					move.Promotion = &Queen{color: color}
@@ -60,6 +53,35 @@ func (b *Board) GetAllValidMoves(color string) []*Move {
 		return moves[i].Value > moves[j].Value
 	})
 	return moves
+}
+
+func (m *Move) SetValue(activity SqActivity) {
+	switch activity {
+	case CASTLE:
+		m.Value = float64(0.5)
+	case CAPTURE:
+		m.Value = math.Abs(m.To.Piece.Value())
+	case EN_PASSANT:
+		m.Value = float64(1)
+	default:
+		if m.DevelopsMinorPiece() {
+			m.Value += float64(0.2)
+		}
+	}
+}
+
+func (m *Move) DevelopsMinorPiece() bool {
+	if isMinorPiece(m.Piece) && !m.Piece.HasMoved() {
+		return true
+	}
+	return false
+}
+
+func isMinorPiece(piece Piece) bool {
+	if piece.Type() == KNIGHT || piece.Type() == BISHOP {
+		return true
+	}
+	return false
 }
 
 func colorMultiplier(color string) float64 {
@@ -107,14 +129,7 @@ func (m *Move) IsSafe(board *Board) bool {
 func (b *Board) MovePiece(move *Move) (string, *Error) {
 	receipt := ""
 	if move.IsValid(b) {
-		switch piece := move.Piece.(type) {
-		case *Pawn:
-			piece.Moved = true
-		case *King:
-			piece.Moved = true
-		case *Rook:
-			piece.Moved = true
-		}
+		move.Piece.SetMoved()
 
 		switch move.Type {
 		case FREE:
@@ -224,10 +239,11 @@ func (b *Board) executeEnPassantMove(move *Move) string {
 }
 
 func (b *Board) executeCastleMove(move *Move) string {
-	king := move.Piece
+	king := b.GetKing(move.Turn)
 	b.SetPiece(king, move.To)
 	move.From.SetPiece(&Null{})
 	b.Moves = append(b.Moves, move)
+	king.Castled = true
 
 	switch king.Square().Name {
 	case "G8":

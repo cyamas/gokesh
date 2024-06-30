@@ -44,6 +44,11 @@ func (b *Board) evaluateWhite() {
 	for piece := range b.WhitePieces {
 		piece.SetActiveSquares(b)
 		b.Value += piece.Value()
+		if king, ok := piece.(*King); ok {
+			if king.Castled {
+				b.Value += 0.5
+			}
+		}
 	}
 }
 
@@ -51,6 +56,11 @@ func (b *Board) evaluateBlack() {
 	for piece := range b.BlackPieces {
 		piece.SetActiveSquares(b)
 		b.Value += piece.Value()
+		if king, ok := piece.(*King); ok {
+			if king.Castled {
+				b.Value -= 0.5
+			}
+		}
 	}
 }
 

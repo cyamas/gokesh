@@ -341,10 +341,10 @@ func TestPieceBlocksCheck(t *testing.T) {
 	blackKnight := &Knight{color: BLACK}
 	c6 := board3.Squares[ROW_6][COL_C]
 
-	blackPawn := &Pawn{color: BLACK, Moved: true}
+	blackPawn := &Pawn{color: BLACK, moved: true}
 	g5 := board2.Squares[ROW_5][COL_G]
 
-	whitePawn := &Pawn{color: WHITE, Moved: true}
+	whitePawn := &Pawn{color: WHITE, moved: true}
 	b4 := board3.Squares[ROW_4][COL_B]
 
 	blackKing3 := &King{color: BLACK}
@@ -689,7 +689,7 @@ func TestCastle(t *testing.T) {
 	checkedBlackSq := checkedBoard.Squares[ROW_8][COL_C]
 	checkedWhiteKing := &King{color: WHITE}
 	checkedBlackKing := &King{color: BLACK}
-	checkingWhiteFPawn := &Pawn{color: WHITE, Moved: true}
+	checkingWhiteFPawn := &Pawn{color: WHITE, moved: true}
 	checkedWhiteRook := &Rook{color: WHITE, CastleSq: checkedBoard.Squares[ROW_1][COL_D]}
 	checkedBlackRook := &Rook{color: BLACK, CastleSq: checkedBoard.Squares[ROW_8][COL_D]}
 
@@ -736,8 +736,8 @@ func TestCastle(t *testing.T) {
 	kingMovedBoard := New()
 	kingMovedWhiteSq := kingMovedBoard.Squares[ROW_1][COL_C]
 	kingMovedBlackSq := kingMovedBoard.Squares[ROW_8][COL_C]
-	kingMovedWhiteKing := &King{color: WHITE, Moved: true}
-	kingMovedBlackKing := &King{color: BLACK, Moved: true}
+	kingMovedWhiteKing := &King{color: WHITE, moved: true}
+	kingMovedBlackKing := &King{color: BLACK, moved: true}
 	kingMovedWhiteRook := &Rook{color: WHITE, CastleSq: kingMovedBoard.Squares[ROW_1][COL_D]}
 	kingMovedBlackRook := &Rook{color: BLACK, CastleSq: kingMovedBoard.Squares[ROW_8][COL_D]}
 	kingMovedWhitePawn := &Pawn{color: WHITE}
@@ -755,8 +755,8 @@ func TestCastle(t *testing.T) {
 	rookMovedBlackSq := rookMovedBoard.Squares[ROW_8][COL_G]
 	rookMovedWhiteKing := &King{color: WHITE}
 	rookMovedBlackKing := &King{color: BLACK}
-	rookMovedWhiteRook := &Rook{color: WHITE, Moved: true, CastleSq: rookMovedBoard.Squares[ROW_1][COL_F]}
-	rookMovedBlackRook := &Rook{color: BLACK, Moved: true, CastleSq: rookMovedBoard.Squares[ROW_8][COL_F]}
+	rookMovedWhiteRook := &Rook{color: WHITE, moved: true, CastleSq: rookMovedBoard.Squares[ROW_1][COL_F]}
+	rookMovedBlackRook := &Rook{color: BLACK, moved: true, CastleSq: rookMovedBoard.Squares[ROW_8][COL_F]}
 	rookMovedWhitePawn := &Pawn{color: WHITE}
 	rookMovedBlackPawn := &Pawn{color: BLACK}
 
@@ -984,7 +984,7 @@ func TestKingInCheck(t *testing.T) {
 	blackKing3 := &King{color: BLACK}
 	h8 := board3.Squares[ROW_8][COL_H]
 
-	blackPawn3 := &Pawn{color: BLACK, Moved: true}
+	blackPawn3 := &Pawn{color: BLACK, moved: true}
 	b2 := board3.Squares[ROW_2][COL_B]
 
 	blackQueen3 := &Queen{color: BLACK}

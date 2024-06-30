@@ -50,10 +50,10 @@ func TestMoveIsSafe(t *testing.T) {
 	whiteKing := &King{color: WHITE}
 
 	e5 := board.Squares[ROW_5][COL_E]
-	whiteEpawn := &Pawn{color: WHITE, Moved: true, value: 1.00}
+	whiteEpawn := &Pawn{color: WHITE, moved: true, value: 1.00}
 
 	d5 := board.Squares[ROW_5][COL_D]
-	blackDPawn := &Pawn{color: BLACK, Moved: true, value: -1.00}
+	blackDPawn := &Pawn{color: BLACK, moved: true, value: -1.00}
 
 	f1 := board.Squares[ROW_1][COL_F]
 	whiteBishop := &Bishop{color: WHITE, value: 3.33}

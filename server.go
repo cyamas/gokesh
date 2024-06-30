@@ -144,23 +144,24 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 	}
 	move := Game.Bot.Move(Game.Board)
 	receipt, _ := Game.ExecuteTurn(move)
+	data := map[string]interface{}{
+		"type":      move.Type,
+		"color":     move.Turn,
+		"from":      []int{move.From.Row, move.From.Column},
+		"to":        []int{move.To.Row, move.To.Column},
+		"eval":      Game.Board.Value,
+		"receipt":   receipt,
+		"fen":       Game.Board.Fen(),
+		"checkmate": false,
+		"stalemate": false,
+	}
 	if Game.Board.Checkmate {
-		handleCheckmate(w)
-		return
+		data["checkmate"] = true
 	}
 	if Game.Board.Stalemate {
-		handleStalemate(w)
-		return
+		data["stalemate"] = true
 	}
-	data := map[string]interface{}{
-		"type":    move.Type,
-		"color":   move.Turn,
-		"from":    []int{move.From.Row, move.From.Column},
-		"to":      []int{move.To.Row, move.To.Column},
-		"eval":    Game.Board.Value,
-		"receipt": receipt,
-		"fen":     Game.Board.Fen(),
-	}
+
 	if move.Promotion != nil {
 		data["promotion"] = move.Promotion.Type()
 	}
@@ -174,13 +175,9 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleCheckmate(w http.ResponseWriter) {
-	last := Game.Board.LastMove()
 	data := map[string]interface{}{
-		"type":     "CHECKMATE",
-		"winner":   Game.Turn,
-		"movetype": last.Type,
-		"from":     []int{last.From.Row, last.From.Column},
-		"to":       []int{last.To.Row, last.To.Column},
+		"type":  "CHECKMATE",
+		"color": game.ENEMY[Game.Turn],
 	}
 	json, err := json.Marshal(data)
 	if err != nil {
@@ -189,7 +186,6 @@ func handleCheckmate(w http.ResponseWriter) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(json)
-	return
 }
 
 func handleStalemate(w http.ResponseWriter) {
@@ -203,5 +199,4 @@ func handleStalemate(w http.ResponseWriter) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(json)
-	return
 }

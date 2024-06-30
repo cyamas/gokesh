@@ -80,22 +80,22 @@ func (b *Board) Copy() *Board {
 			ogSq := b.Squares[i][j]
 			switch piece := ogSq.Piece.(type) {
 			case *Pawn:
-				pawn := &Pawn{color: piece.color, value: piece.value, Moved: piece.Moved}
+				pawn := &Pawn{color: piece.color, value: piece.value, moved: piece.HasMoved()}
 				copy.SetPiece(pawn, sq)
 			case *Knight:
-				knight := &Knight{color: piece.color, value: piece.value}
+				knight := &Knight{color: piece.color, value: piece.value, moved: piece.HasMoved()}
 				copy.SetPiece(knight, sq)
 			case *Bishop:
-				bishop := &Bishop{color: piece.color, value: piece.value}
+				bishop := &Bishop{color: piece.color, value: piece.value, moved: piece.HasMoved()}
 				copy.SetPiece(bishop, sq)
 			case *Rook:
-				rook := &Rook{color: piece.color, value: piece.value, Moved: piece.Moved}
+				rook := &Rook{color: piece.color, value: piece.value, moved: piece.HasMoved()}
 				copy.SetPiece(rook, sq)
 			case *Queen:
-				queen := &Queen{color: piece.color, value: piece.value}
+				queen := &Queen{color: piece.color, value: piece.value, moved: piece.HasMoved()}
 				copy.SetPiece(queen, sq)
 			case *King:
-				king := &King{color: piece.color, value: piece.value, Moved: piece.Moved}
+				king := &King{color: piece.color, value: piece.value, moved: piece.HasMoved()}
 				copy.SetPiece(king, sq)
 			default:
 				copy.SetPiece(&Null{}, sq)
@@ -304,13 +304,13 @@ func (b *Board) SetupFromFen(fen string) {
 				case 'p':
 					p := &Pawn{color: BLACK, value: -1.00}
 					if sq.Row != ROW_7 {
-						p.Moved = true
+						p.moved = true
 					}
 					b.SetPiece(p, sq)
 				case 'P':
 					p := &Pawn{color: WHITE, value: 1.00}
 					if sq.Row != ROW_2 {
-						p.Moved = true
+						p.moved = true
 					}
 					b.SetPiece(p, sq)
 				case 'n':
@@ -326,10 +326,10 @@ func (b *Board) SetupFromFen(fen string) {
 					bish := &Bishop{color: WHITE, value: 3.33}
 					b.SetPiece(bish, sq)
 				case 'r':
-					r := &Rook{color: BLACK, value: -5.63, Moved: true}
+					r := &Rook{color: BLACK, value: -5.63, moved: true}
 					b.SetPiece(r, sq)
 				case 'R':
-					r := &Rook{color: WHITE, value: 5.63, Moved: true}
+					r := &Rook{color: WHITE, value: 5.63, moved: true}
 					b.SetPiece(r, sq)
 				case 'q':
 					q := &Queen{color: BLACK, value: -9.5}

@@ -219,7 +219,26 @@ function getBotMove() {
     .then((data) => {
       console.log(data["receipt"]);
       console.log(data["fen"]);
+
+      if (data["type"] === "STALEMATE") {
+        let msg = "Stalemate\n Game is a draw";
+        alert(msg);
+        location.reload();
+      }
+      if (data["type"] === "CHECKMATE") {
+        let msg = "Checkmate\n You won!";
+        alert(msg);
+        location.reload();
+      }
       updateBoard(data);
+      if (data["checkmate"] === true) {
+        let msg = "Checkmate\n You lost!";
+        alert(msg);
+      }
+      if (data["stalemate"] === true) {
+        let msg = "Stalemate\n Game is draw!";
+        alert(msg);
+      }
     })
     .catch((error) => {
       console.error("Error fetching data:", error);
@@ -227,33 +246,10 @@ function getBotMove() {
 }
 
 function updateBoard(data) {
-  if (data["type"] === "CHECKMATE") {
-    console.log(data);
-    movePiece(data["winner"], data["movetype"], data["from"], data["to"]);
-    let msg = "Checkmate\n" + data["winner"] + " has won!";
-    setTimeout(function () {
-      alertCheckmate(msg);
-    }, 200);
-    location.reload();
-  }
-  if (data["type"] === "STALEMATE") {
-    let msg = "Stalemate. Game ends in a draw";
-    alert(msg);
-    location.reload();
-  }
-  movePiece(data["color"], data["type"], data["from"], data["to"]);
-  updateEvalBar(data["eval"]);
-}
-
-function alertCheckmate(msg) {
-  alert(msg);
-}
-
-function movePiece(color, moveType, from, to) {
-  let fromRow = from[0];
-  let fromCol = from[1];
-  let toRow = to[0];
-  let toCol = to[1];
+  let fromRow = data["from"][0];
+  let fromCol = data["from"][1];
+  let toRow = data["to"][0];
+  let toCol = data["to"][1];
 
   let fromSq = document.getElementById(cols[fromCol] + rows[fromRow]);
   let toSq = document.getElementById(cols[toCol] + rows[toRow]);
@@ -263,11 +259,11 @@ function movePiece(color, moveType, from, to) {
 
   let nullPiece = newNullPiece();
 
-  if (moveType === "ENPASSANT") {
+  if (data["type"] === "ENPASSANT") {
     handleEnPassant(from, to);
   }
-  if (moveType === "CASTLE") {
-    handleCastle(color, to);
+  if (data["type"] === "CASTLE") {
+    handleCastle(data["color"], data["to"]);
   }
 
   toSq.appendChild(fromPiece);
@@ -277,6 +273,8 @@ function movePiece(color, moveType, from, to) {
   if (data["promotion"] === "QUEEN") {
     handlePawnPromotion(toSq, fromPiece);
   }
+
+  updateEvalBar(data["eval"]);
 }
 
 function updateEvalBar(eval) {
