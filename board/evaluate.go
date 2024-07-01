@@ -75,7 +75,7 @@ func (b *Board) evaluateBlack() {
 }
 
 func (b *Board) BestMove(turn string) *Move {
-	move, _ := b.MiniMax(turn, math.Inf(-1), math.Inf(1), 3)
+	move, _ := b.MiniMax(turn, math.Inf(-1), math.Inf(1), 4)
 	return move
 }
 
