@@ -223,12 +223,15 @@ function getBotMove() {
       if (data["type"] === "STALEMATE") {
         let msg = "Stalemate\n Game is a draw";
         alert(msg);
-        location.reload();
+      }
+      if (data["type"] === "DRAW") {
+        console.log("GAME IS A DRAW");
+        let msg = data["draw-type"];
+        alert(msg);
       }
       if (data["type"] === "CHECKMATE") {
         let msg = "Checkmate\n You won!";
         alert(msg);
-        location.reload();
       }
       updateBoard(data);
       if (data["checkmate"] === true) {
@@ -237,6 +240,10 @@ function getBotMove() {
       }
       if (data["stalemate"] === true) {
         let msg = "Stalemate\n Game is draw!";
+        alert(msg);
+      }
+      if (data["draw"] === true) {
+        let msg = "Draw\n" + data["msg"];
         alert(msg);
       }
     })
@@ -260,7 +267,7 @@ function updateBoard(data) {
   let nullPiece = newNullPiece();
 
   if (data["type"] === "ENPASSANT") {
-    handleEnPassant(from, to);
+    handleEnPassant(data["from"], data["to"]);
   }
   if (data["type"] === "CASTLE") {
     handleCastle(data["color"], data["to"]);

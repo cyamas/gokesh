@@ -1,7 +1,6 @@
 package board
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -192,9 +191,6 @@ func TestAttackPath(t *testing.T) {
 		toSq := tt.testKing.Square()
 		attackPath := tt.board.GetAttackedPath(fromSq, toSq)
 		if len(attackPath) != tt.expectedLenPath {
-			for _, sq := range tt.expectedPath {
-				fmt.Println("PATH SQ: ", sq.Name)
-			}
 			t.Fatalf("checkPath should have len %d. Got %d", tt.expectedLenPath, len(attackPath))
 		}
 		for _, sq := range tt.expectedPath {

@@ -135,6 +135,7 @@ func (b *Board) MovePiece(move *Move) (string, *Error) {
 		case FREE:
 			receipt = b.executeFreeMove(move)
 			b.Receipts = append(b.Receipts, receipt)
+			b.addFen(b.Fen())
 			b.Evaluate(move.Turn)
 			return receipt, nil
 		case CAPTURE:
@@ -156,6 +157,14 @@ func (b *Board) MovePiece(move *Move) (string, *Error) {
 	}
 
 	return b.invalidMove(move)
+}
+
+func (b *Board) addFen(fen string) {
+	if _, ok := b.Fens[fen]; ok {
+		b.Fens[fen] += 1
+		return
+	}
+	b.Fens[fen] = 1
 }
 
 func (b *Board) invalidMove(move *Move) (string, *Error) {

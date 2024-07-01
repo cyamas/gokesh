@@ -142,6 +142,10 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 		handleStalemate(w)
 		return
 	}
+	if Game.Board.Draw {
+		handleDraw(w)
+		return
+	}
 	move := Game.Bot.Move(Game.Board)
 	receipt, _ := Game.ExecuteTurn(move)
 	data := map[string]interface{}{
@@ -154,12 +158,23 @@ func botMove(w http.ResponseWriter, r *http.Request) {
 		"fen":       Game.Board.Fen(),
 		"checkmate": false,
 		"stalemate": false,
+		"draw":      false,
+		"draw-type": "",
 	}
 	if Game.Board.Checkmate {
 		data["checkmate"] = true
 	}
 	if Game.Board.Stalemate {
 		data["stalemate"] = true
+	}
+	if Game.Board.Draw {
+		data["draw"] = true
+		switch {
+		case Game.Board.DrawByRepetition():
+			data["draw-type"] = "by repetition"
+		case Game.Board.DrawByInsufficientMaterial():
+			data["draw-type"] = "insufficient material"
+		}
 	}
 
 	if move.Promotion != nil {
@@ -191,6 +206,26 @@ func handleCheckmate(w http.ResponseWriter) {
 func handleStalemate(w http.ResponseWriter) {
 	data := map[string]interface{}{
 		"type": "STALEMATE",
+	}
+	json, err := json.Marshal(data)
+	if err != nil {
+		http.Error(w, "Failed to encode JSON", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(json)
+}
+
+func handleDraw(w http.ResponseWriter) {
+	data := map[string]interface{}{
+		"type": "DRAW",
+		"msg":  "",
+	}
+	if Game.Board.DrawByRepetition() {
+		data["msg"] = "by repetition"
+	}
+	if Game.Board.DrawByInsufficientMaterial() {
+		data["msg"] = "insufficient material"
 	}
 	json, err := json.Marshal(data)
 	if err != nil {

@@ -142,6 +142,9 @@ func (g *Game) ExecuteTurn(move *board.Move) (string, *Error) {
 	if g.Board.Stalemate {
 		return fmt.Sprintf("%s\nSTALEMATE: GAME IS A DRAW", receipt), nil
 	}
+	if g.Board.Draw {
+		return fmt.Sprintf("%s\nDRAW: By repetition", receipt), nil
+	}
 	if g.Board.GetKing(g.Turn).Checked {
 		receipt += fmt.Sprintf("\n%s IN CHECK", ENEMY[g.Turn])
 	}

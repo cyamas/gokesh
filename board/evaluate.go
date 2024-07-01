@@ -7,6 +7,10 @@ import (
 )
 
 func (b *Board) Evaluate(turn string) {
+	if b.DrawDetected() {
+		b.Draw = true
+		return
+	}
 	b.Value = 0.0
 	b.resetCheck(turn)
 	b.resetPins()
@@ -44,9 +48,12 @@ func (b *Board) evaluateWhite() {
 	for piece := range b.WhitePieces {
 		piece.SetActiveSquares(b)
 		b.Value += piece.Value()
+		if isMinorPiece(piece) && !piece.HasMoved() {
+			b.Value -= 0.95
+		}
 		if king, ok := piece.(*King); ok {
-			if king.Castled {
-				b.Value += 0.5
+			if !king.Castled {
+				b.Value -= 0.95
 			}
 		}
 	}
@@ -56,9 +63,12 @@ func (b *Board) evaluateBlack() {
 	for piece := range b.BlackPieces {
 		piece.SetActiveSquares(b)
 		b.Value += piece.Value()
+		if isMinorPiece(piece) && !piece.HasMoved() {
+			b.Value += 0.95
+		}
 		if king, ok := piece.(*King); ok {
-			if king.Castled {
-				b.Value -= 0.5
+			if !king.Castled {
+				b.Value += 0.95
 			}
 		}
 	}
@@ -83,18 +93,19 @@ func (b *Board) MiniMax(turn string, alpha float64, beta float64, depth int) (*M
 	if depth == 0 {
 		return nil, b.Value
 	}
+	if b.Draw {
+		fmt.Println("DRAW DETECTED")
+		return nil, 0.0
+	}
 	if b.Checkmate {
 		fmt.Println("CHECKMATE DETECTED")
-		for _, receipt := range b.Receipts {
-			fmt.Println(receipt)
-		}
 		if turn == WHITE {
 			return nil, -99.9
 		} else {
 			return nil, 99.9
 		}
 	}
-	if b.Stalemate {
+	if b.Stalemate || b.Draw {
 		fmt.Println("STALEMATE DETECTED")
 		return nil, 0.0
 	}

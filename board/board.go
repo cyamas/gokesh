@@ -41,7 +41,9 @@ type Board struct {
 	BlackPieces map[Piece]bool
 	Checkmate   bool
 	Stalemate   bool
+	Draw        bool
 	Value       float64
+	Fens        map[string]int
 	Receipts    []string
 }
 
@@ -69,6 +71,7 @@ func New() *Board {
 		}
 		board.Squares = append(board.Squares, boardRow)
 	}
+	board.Fens = map[string]int{}
 
 	return board
 }
@@ -104,6 +107,9 @@ func (b *Board) Copy() *Board {
 	}
 	for _, receipt := range b.Receipts {
 		copy.Receipts = append(copy.Receipts, receipt)
+	}
+	for fen, count := range b.Fens {
+		copy.Fens[fen] = count
 	}
 	return copy
 }
@@ -350,6 +356,53 @@ func (b *Board) SetupFromFen(fen string) {
 			}
 		}
 	}
+}
+
+func (b *Board) DrawDetected() bool {
+	if b.DrawByRepetition() {
+		return true
+	}
+	if b.DrawByInsufficientMaterial() {
+		return true
+	}
+	return false
+}
+
+func (b *Board) DrawByRepetition() bool {
+	currFen := b.Fen()
+	fmt.Println(currFen)
+	if count, ok := b.Fens[currFen]; ok {
+		if count > 2 {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Board) DrawByInsufficientMaterial() bool {
+	whiteValue := 0.0
+	whitePawns := 0
+	blackValue := 0.0
+	blackPawns := 0
+
+	for piece := range b.WhitePieces {
+		if piece.Type() == PAWN {
+			whitePawns++
+		}
+		whiteValue += piece.Value()
+	}
+	for piece := range b.BlackPieces {
+		if piece.Type() == PAWN {
+			blackPawns++
+		}
+		blackValue -= piece.Value()
+	}
+
+	if whiteValue < 104.0 && blackValue < 104.0 && whitePawns == 0 && blackPawns == 0 {
+		return true
+	}
+
+	return false
 }
 
 func (b *Board) resetPins() {
