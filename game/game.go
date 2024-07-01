@@ -204,7 +204,6 @@ func (g *Game) handlePawnPromotion(move *board.Move, out io.Writer, scanner *buf
 			move.Promotion = knight
 			return
 		default:
-			fmt.Println("ERROR: INVALID PIECE FOR PROMOTION")
 			continue
 		}
 	}

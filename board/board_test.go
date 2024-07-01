@@ -226,11 +226,11 @@ func TestFen(t *testing.T) {
 
 func TestDiagonalPath(t *testing.T) {
 	board := New()
-	h1 := board.getSquare(ROW_1, COL_H)
-	a1 := board.getSquare(ROW_1, COL_A)
-	b2 := board.getSquare(ROW_2, COL_B)
-	h8 := board.getSquare(ROW_8, COL_H)
-	a8 := board.getSquare(ROW_8, COL_A)
+	h1 := board.GetSquare(ROW_1, COL_H)
+	a1 := board.GetSquare(ROW_1, COL_A)
+	b2 := board.GetSquare(ROW_2, COL_B)
+	h8 := board.GetSquare(ROW_8, COL_H)
+	a8 := board.GetSquare(ROW_8, COL_A)
 
 	tests := []struct {
 		from           *Square

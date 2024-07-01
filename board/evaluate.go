@@ -1,7 +1,6 @@
 package board
 
 import (
-	"fmt"
 	"math"
 	"sort"
 )
@@ -75,7 +74,7 @@ func (b *Board) evaluateBlack() {
 }
 
 func (b *Board) BestMove(turn string) *Move {
-	move, _ := b.MiniMax(turn, math.Inf(-1), math.Inf(1), 4)
+	move, _ := b.MiniMax(turn, math.Inf(-1), math.Inf(1), 3)
 	return move
 }
 
@@ -94,11 +93,9 @@ func (b *Board) MiniMax(turn string, alpha float64, beta float64, depth int) (*M
 		return nil, b.Value
 	}
 	if b.Draw {
-		fmt.Println("DRAW DETECTED")
 		return nil, 0.0
 	}
 	if b.Checkmate {
-		fmt.Println("CHECKMATE DETECTED")
 		if turn == WHITE {
 			return nil, -99.9
 		} else {
@@ -106,7 +103,6 @@ func (b *Board) MiniMax(turn string, alpha float64, beta float64, depth int) (*M
 		}
 	}
 	if b.Stalemate || b.Draw {
-		fmt.Println("STALEMATE DETECTED")
 		return nil, 0.0
 	}
 

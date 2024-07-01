@@ -10,6 +10,15 @@ const (
 	NULL   = "NULL"
 )
 
+var PieceValues = map[string]float64{
+	PAWN:   1.00,
+	KNIGHT: 3.05,
+	BISHOP: 3.33,
+	ROOK:   5.63,
+	QUEEN:  9.5,
+	KING:   99.9,
+}
+
 type Pin struct {
 	Piece Piece
 	Path  map[*Square]bool
@@ -77,8 +86,7 @@ func (k *King) SetActiveSquares(board *Board) {
 		candRow := k.square.Row + coords[0]
 		candCol := k.square.Column + coords[1]
 
-		if squareExists(candRow, candCol) {
-			cand := board.getSquare(candRow, candCol)
+		if cand, ok := board.GetSquareIfExists(candRow, candCol); ok {
 			if !cand.IsEmpty() && cand.Piece.IsAlly(k.color) {
 				continue
 			}
@@ -369,8 +377,7 @@ func (kn *Knight) SetActiveSquares(board *Board) {
 		candRow := kn.square.Row + dir[0]
 		candCol := kn.square.Column + dir[1]
 
-		if squareExists(candRow, candCol) {
-			cand := board.Squares[candRow][candCol]
+		if cand, ok := board.GetSquareIfExists(candRow, candCol); ok {
 			switch {
 			case cand.IsEmpty():
 				actives[cand] = FREE
@@ -448,15 +455,13 @@ func (p *Pawn) addForwardSquares(actives map[*Square]SqActivity, board *Board) {
 	col := p.square.Column
 
 	if !p.moved {
-		dblCand := board.getSquare(p.candidateRow(2), col)
-		betweenSq := board.getSquare(row, col)
+		dblCand := board.GetSquare(p.candidateRow(2), col)
+		betweenSq := board.GetSquare(row, col)
 		if dblCand.IsEmpty() && betweenSq.IsEmpty() {
 			actives[dblCand] = FREE
 		}
 	}
-
-	if squareExists(row, col) {
-		cand := board.getSquare(row, col)
+	if cand, ok := board.GetSquareIfExists(row, col); ok {
 		if cand.IsEmpty() {
 			actives[cand] = FREE
 		}
@@ -472,8 +477,7 @@ func (p *Pawn) addDiagonalSquares(actives map[*Square]SqActivity, board *Board) 
 
 loop:
 	for _, col := range cols {
-		if squareExists(row, col) {
-			cand := board.getSquare(row, col)
+		if cand, ok := board.GetSquareIfExists(row, col); ok {
 			switch {
 			case p.pinnedDiagonally():
 				pinner := p.pin.Piece
@@ -590,6 +594,13 @@ func (n *Null) SetPin(piece Piece, path map[*Square]bool) {}
 func (n *Null) ResetPin()                                 {}
 func (n *Null) Pin() *Pin                                 { return nil }
 
+func (b *Board) GetSquareIfExists(row int, col int) (*Square, bool) {
+	if squareExists(row, col) {
+		sq := b.GetSquare(row, col)
+		return sq, true
+	}
+	return nil, false
+}
 func squareExists(row int, col int) bool {
 	return 0 <= row && row <= 7 && 0 <= col && col <= 7
 }
@@ -611,7 +622,6 @@ func calcBRQActives(piece Piece, dirs map[string][2]int, board *Board) map[*Squa
 	}
 
 	for _, coords := range dirs {
-
 		var pinnedCand Piece = &Null{}
 		xRayed := false
 		path := map[*Square]bool{piece.Square(): true}
@@ -621,12 +631,9 @@ func calcBRQActives(piece Piece, dirs map[string][2]int, board *Board) map[*Squa
 			row := piece.Square().Row + (coords[0] * dist)
 			col := piece.Square().Column + (coords[1] * dist)
 
-			if squareExists(row, col) {
-				cand := board.getSquare(row, col)
+			if cand, ok := board.GetSquareIfExists(row, col); ok {
 				path[cand] = true
-
 				switch {
-
 				case xRayed && !cand.IsEmpty():
 					if cand.Piece.IsEnemy(piece.Color()) {
 						if cand.Piece.Type() == KING {
@@ -689,8 +696,8 @@ func calcBRQPinnedActives(piece Piece, dirs map[string][2]int, board *Board) map
 		for dist := 1; dist < 8; dist++ {
 			candRow := piece.Square().Row + (coords[0] * dist)
 			candCol := piece.Square().Column + (coords[1] * dist)
-			if squareExists(candRow, candCol) {
-				cand := board.getSquare(candRow, candCol)
+
+			if cand, ok := board.GetSquareIfExists(candRow, candCol); ok {
 				_, ok := piece.Pin().Path[cand]
 				if !ok {
 					break

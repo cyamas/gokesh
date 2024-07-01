@@ -160,7 +160,7 @@ func (s *Square) IsEmpty() bool {
 	return false
 }
 
-func (b *Board) getSquare(row, col int) *Square {
+func (b *Board) GetSquare(row, col int) *Square {
 	return b.Squares[row][col]
 }
 
@@ -370,7 +370,6 @@ func (b *Board) DrawDetected() bool {
 
 func (b *Board) DrawByRepetition() bool {
 	currFen := b.Fen()
-	fmt.Println(currFen)
 	if count, ok := b.Fens[currFen]; ok {
 		if count > 2 {
 			return true
@@ -509,9 +508,9 @@ func (b *Board) addKingAttackedSquares(king *King, attackedSqs map[*Square][]Pie
 	for _, dir := range KING_DIRS {
 		row := king.Square().Row + dir[0]
 		col := king.Square().Column + dir[1]
-		if squareExists(row, col) {
-			kingGuardedSq := b.getSquare(row, col)
-			addAttackedSquare(kingGuardedSq, king, attackedSqs)
+
+		if cand, ok := b.GetSquareIfExists(row, col); ok {
+			addAttackedSquare(cand, king, attackedSqs)
 		}
 	}
 }
@@ -519,8 +518,7 @@ func (b *Board) addKingAttackedSquares(king *King, attackedSqs map[*Square][]Pie
 func (b *Board) checkSquarePastKing(row, col int, coords [2]int) (*Square, bool) {
 	candRow := row + coords[0]
 	candCol := col + coords[1]
-	if squareExists(candRow, candCol) {
-		cand := b.getSquare(candRow, candCol)
+	if cand, ok := b.GetSquareIfExists(candRow, candCol); ok {
 		return cand, true
 	}
 	return nil, false
@@ -617,21 +615,11 @@ func (b *Board) GetKing(color string) *King {
 				return king
 			}
 		}
-		fmt.Println("NO WHITE KING PRESENT")
-		fmt.Println("RECEIPTS")
-		for _, receipt := range b.Receipts {
-			fmt.Println(receipt)
-		}
 	} else {
 		for piece := range b.BlackPieces {
 			if king, ok := piece.(*King); ok {
 				return king
 			}
-		}
-		fmt.Println("NO BLACK KING PRESENT")
-		fmt.Println("RECEIPTS")
-		for _, receipt := range b.Receipts {
-			fmt.Println(receipt)
 		}
 	}
 	return nil
