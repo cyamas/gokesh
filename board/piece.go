@@ -38,7 +38,10 @@ type Piece interface {
 	Pin() *Pin
 	IsAlly(color string) bool
 	IsEnemy(color string) bool
-	SetMoved()
+	MoveCount() int
+	SetMoveCount(count int)
+	IncrementMoveCount()
+	DecrementMoveCount()
 	HasMoved() bool
 }
 
@@ -46,7 +49,7 @@ type King struct {
 	square        *Square
 	color         string
 	value         float64
-	moved         bool
+	moveCount     int
 	Checked       bool
 	Checkers      []Piece
 	Castled       bool
@@ -70,8 +73,11 @@ func (k *King) SetColor(color string)                     { k.color = color }
 func (k *King) Color() string                             { return k.color }
 func (k *King) SetSquare(square *Square)                  { k.square = square }
 func (k *King) Square() *Square                           { return k.square }
-func (k *King) SetMoved()                                 { k.moved = true }
-func (k *King) HasMoved() bool                            { return k.moved }
+func (k *King) MoveCount() int                            { return k.moveCount }
+func (k *King) SetMoveCount(count int)                    { k.moveCount = count }
+func (k *King) IncrementMoveCount()                       { k.moveCount++ }
+func (k *King) DecrementMoveCount()                       { k.moveCount-- }
+func (k *King) HasMoved() bool                            { return k.moveCount > 0 }
 func (k *King) ActiveSquares() map[*Square]SqActivity     { return k.activeSquares }
 func (k *King) SetPin(piece Piece, path map[*Square]bool) {}
 func (k *King) ResetPin()                                 {}
@@ -101,7 +107,7 @@ func (k *King) SetActiveSquares(board *Board) {
 		}
 	}
 
-	if !k.moved && !k.Checked {
+	if !k.HasMoved() && !k.Checked {
 		k.checkForShortCastle(board, unsafes, actives)
 		k.checkForLongCastle(board, unsafes, actives)
 	}
@@ -174,7 +180,7 @@ func rookCanCastle(square *Square) bool {
 	if !ok {
 		return false
 	}
-	if rook.moved {
+	if rook.HasMoved() {
 		return false
 	}
 	return true
@@ -198,7 +204,7 @@ type Queen struct {
 	value         float64
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
-	moved         bool
+	moveCount     int
 }
 
 func (q *Queen) Type() string   { return QUEEN }
@@ -216,8 +222,11 @@ func (q *Queen) IsAlly(color string) bool              { return q.color == color
 func (q *Queen) IsEnemy(color string) bool             { return q.color != color }
 func (q *Queen) SetSquare(square *Square)              { q.square = square }
 func (q *Queen) Square() *Square                       { return q.square }
-func (q *Queen) SetMoved()                             { q.moved = true }
-func (q *Queen) HasMoved() bool                        { return q.moved }
+func (q *Queen) MoveCount() int                        { return q.moveCount }
+func (q *Queen) SetMoveCount(count int)                { q.moveCount = count }
+func (q *Queen) IncrementMoveCount()                   { q.moveCount++ }
+func (q *Queen) DecrementMoveCount()                   { q.moveCount-- }
+func (q *Queen) HasMoved() bool                        { return q.moveCount > 0 }
 func (q *Queen) ActiveSquares() map[*Square]SqActivity { return q.activeSquares }
 func (q *Queen) SetActiveSquares(board *Board) {
 	dirs := map[string][2]int{
@@ -230,10 +239,10 @@ func (q *Queen) SetActiveSquares(board *Board) {
 		"SE": {1, 1},
 		"SW": {1, -1},
 	}
+	actives := calcBRQActives(q, dirs, board)
 	if q.pin != nil {
-		q.activeSquares = calcBRQPinnedActives(q, dirs, board)
+		q.activeSquares = filterBRQActivesForPin(q, actives)
 	} else {
-		actives := calcBRQActives(q, dirs, board)
 		q.activeSquares = actives
 	}
 }
@@ -248,7 +257,7 @@ type Rook struct {
 	square        *Square
 	color         string
 	value         float64
-	moved         bool
+	moveCount     int
 	CastleSq      *Square
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
@@ -262,8 +271,11 @@ func (r *Rook) IsAlly(color string) bool              { return r.color == color 
 func (r *Rook) IsEnemy(color string) bool             { return r.color != color }
 func (r *Rook) SetSquare(square *Square)              { r.square = square }
 func (r *Rook) Square() *Square                       { return r.square }
-func (r *Rook) SetMoved()                             { r.moved = true }
-func (r *Rook) HasMoved() bool                        { return r.moved }
+func (r *Rook) MoveCount() int                        { return r.moveCount }
+func (r *Rook) SetMoveCount(count int)                { r.moveCount = count }
+func (r *Rook) IncrementMoveCount()                   { r.moveCount++ }
+func (r *Rook) DecrementMoveCount()                   { r.moveCount-- }
+func (r *Rook) HasMoved() bool                        { return r.moveCount > 0 }
 func (r *Rook) ActiveSquares() map[*Square]SqActivity { return r.activeSquares }
 func (r *Rook) Pin() *Pin                             { return r.pin }
 
@@ -274,10 +286,11 @@ func (r *Rook) SetActiveSquares(board *Board) {
 		"S": {1, 0},
 		"W": {0, -1},
 	}
+	actives := calcBRQActives(r, dirs, board)
 	if r.pin != nil {
-		r.activeSquares = calcBRQPinnedActives(r, dirs, board)
+		r.activeSquares = filterBRQActivesForPin(r, actives)
 	} else {
-		r.activeSquares = calcBRQActives(r, dirs, board)
+		r.activeSquares = actives
 	}
 }
 
@@ -292,7 +305,7 @@ type Bishop struct {
 	value         float64
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
-	moved         bool
+	moveCount     int
 }
 
 func (b *Bishop) Type() string                          { return BISHOP }
@@ -303,8 +316,11 @@ func (b *Bishop) IsAlly(color string) bool              { return b.color == colo
 func (b *Bishop) IsEnemy(color string) bool             { return b.color != color }
 func (b *Bishop) SetSquare(square *Square)              { b.square = square }
 func (b *Bishop) Square() *Square                       { return b.square }
-func (b *Bishop) SetMoved()                             { b.moved = true }
-func (b *Bishop) HasMoved() bool                        { return b.moved }
+func (b *Bishop) MoveCount() int                        { return b.moveCount }
+func (b *Bishop) SetMoveCount(count int)                { b.moveCount = count }
+func (b *Bishop) IncrementMoveCount()                   { b.moveCount++ }
+func (b *Bishop) DecrementMoveCount()                   { b.moveCount-- }
+func (b *Bishop) HasMoved() bool                        { return b.moveCount > 0 }
 func (b *Bishop) Pin() *Pin                             { return b.pin }
 func (b *Bishop) ActiveSquares() map[*Square]SqActivity { return b.activeSquares }
 func (b *Bishop) SetActiveSquares(board *Board) {
@@ -314,10 +330,12 @@ func (b *Bishop) SetActiveSquares(board *Board) {
 		"SE": {1, 1},
 		"SW": {1, -1},
 	}
+
+	actives := calcBRQActives(b, dirs, board)
 	if b.pin != nil {
-		b.activeSquares = calcBRQPinnedActives(b, dirs, board)
+		b.activeSquares = filterBRQActivesForPin(b, actives)
 	} else {
-		b.activeSquares = calcBRQActives(b, dirs, board)
+		b.activeSquares = actives
 	}
 }
 
@@ -332,7 +350,7 @@ type Knight struct {
 	value         float64
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
-	moved         bool
+	moveCount     int
 }
 
 var KNIGHT_DIRS = [8][2]int{
@@ -354,8 +372,11 @@ func (kn *Knight) IsAlly(color string) bool              { return kn.color == co
 func (kn *Knight) IsEnemy(color string) bool             { return kn.color != color }
 func (kn *Knight) SetSquare(square *Square)              { kn.square = square }
 func (kn *Knight) Square() *Square                       { return kn.square }
-func (kn *Knight) SetMoved()                             { kn.moved = true }
-func (kn *Knight) HasMoved() bool                        { return kn.moved }
+func (kn *Knight) MoveCount() int                        { return kn.moveCount }
+func (kn *Knight) SetMoveCount(count int)                { kn.moveCount = count }
+func (kn *Knight) IncrementMoveCount()                   { kn.moveCount++ }
+func (kn *Knight) DecrementMoveCount()                   { kn.moveCount-- }
+func (kn *Knight) HasMoved() bool                        { return kn.moveCount > 0 }
 func (kn *Knight) Pin() *Pin                             { return kn.pin }
 func (kn *Knight) ActiveSquares() map[*Square]SqActivity { return kn.activeSquares }
 
@@ -410,7 +431,7 @@ type Pawn struct {
 	square        *Square
 	color         string
 	value         float64
-	moved         bool
+	moveCount     int
 	activeSquares map[*Square]SqActivity
 	pin           *Pin
 }
@@ -423,8 +444,11 @@ func (p *Pawn) SetSquare(square *Square)                  { p.square = square }
 func (p *Pawn) IsAlly(color string) bool                  { return p.color == color }
 func (p *Pawn) IsEnemy(color string) bool                 { return p.color != color }
 func (p *Pawn) Square() *Square                           { return p.square }
-func (p *Pawn) SetMoved()                                 { p.moved = true }
-func (p *Pawn) HasMoved() bool                            { return p.moved }
+func (p *Pawn) MoveCount() int                            { return p.moveCount }
+func (p *Pawn) SetMoveCount(count int)                    { p.moveCount = count }
+func (p *Pawn) IncrementMoveCount()                       { p.moveCount++ }
+func (p *Pawn) DecrementMoveCount()                       { p.moveCount-- }
+func (p *Pawn) HasMoved() bool                            { return p.moveCount > 0 }
 func (p *Pawn) Pin() *Pin                                 { return p.pin }
 func (p *Pawn) SetPin(piece Piece, path map[*Square]bool) { p.pin = &Pin{piece, path} }
 func (p *Pawn) ResetPin()                                 { p.pin = nil }
@@ -454,7 +478,7 @@ func (p *Pawn) addForwardSquares(actives map[*Square]SqActivity, board *Board) {
 	row := p.candidateRow(1)
 	col := p.square.Column
 
-	if !p.moved {
+	if !p.HasMoved() {
 		dblCand := board.GetSquare(p.candidateRow(2), col)
 		betweenSq := board.GetSquare(row, col)
 		if dblCand.IsEmpty() && betweenSq.IsEmpty() {
@@ -586,7 +610,10 @@ func (n *Null) IsAlly(color string) bool                  { return false }
 func (n *Null) IsEnemy(color string) bool                 { return false }
 func (n *Null) SetSquare(square *Square)                  { n.square = square }
 func (n *Null) Square() *Square                           { return n.square }
-func (n *Null) SetMoved()                                 {}
+func (n *Null) MoveCount() int                            { return 0 }
+func (n *Null) IncrementMoveCount()                       {}
+func (n *Null) DecrementMoveCount()                       {}
+func (n *Null) SetMoveCount(count int)                    {}
 func (n *Null) HasMoved() bool                            { return false }
 func (n *Null) ActiveSquares() map[*Square]SqActivity     { return nil }
 func (n *Null) SetActiveSquares(board *Board)             {}
@@ -636,7 +663,7 @@ func calcBRQActives(piece Piece, dirs map[string][2]int, board *Board) map[*Squa
 				switch {
 				case xRayed && !cand.IsEmpty():
 					if cand.Piece.IsEnemy(piece.Color()) {
-						if cand.Piece.Type() == KING {
+						if cand.Piece.Type() == KING && pinnedCand.Pin() == nil {
 							pinnedCand.SetPin(piece, path)
 							pinnedCand.SetActiveSquares(board)
 						}
@@ -689,6 +716,19 @@ func filterBRQActivesForCheck(actives map[*Square]SqActivity, board *Board, king
 	return filtered
 }
 
+func filterBRQActivesForPin(piece Piece, actives map[*Square]SqActivity) map[*Square]SqActivity {
+	filtered := map[*Square]SqActivity{}
+	for sq, activity := range actives {
+		_, ok := piece.Pin().Path[sq]
+		if ok {
+			filtered[sq] = activity
+		} else {
+			filtered[sq] = GUARDED
+		}
+	}
+	return filtered
+}
+
 func calcBRQPinnedActives(piece Piece, dirs map[string][2]int, board *Board) map[*Square]SqActivity {
 	actives := map[*Square]SqActivity{}
 	king := board.GetKing(piece.Color())
@@ -699,13 +739,15 @@ func calcBRQPinnedActives(piece Piece, dirs map[string][2]int, board *Board) map
 
 			if cand, ok := board.GetSquareIfExists(candRow, candCol); ok {
 				_, ok := piece.Pin().Path[cand]
-				if !ok {
-					break
-				}
-
 				switch {
 				case cand.IsEmpty():
-					actives[cand] = FREE
+					if ok {
+						actives[cand] = FREE
+					} else {
+						actives[cand] = GUARDED
+					}
+				case cand.Piece.IsAlly(piece.Color()):
+
 				case cand == piece.Pin().Piece.Square():
 					actives[cand] = CAPTURE
 					break

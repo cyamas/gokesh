@@ -337,10 +337,10 @@ func TestPieceBlocksCheck(t *testing.T) {
 	blackKnight := &Knight{color: BLACK}
 	c6 := board3.Squares[ROW_6][COL_C]
 
-	blackPawn := &Pawn{color: BLACK, moved: true}
+	blackPawn := &Pawn{color: BLACK, moveCount: 1}
 	g5 := board2.Squares[ROW_5][COL_G]
 
-	whitePawn := &Pawn{color: WHITE, moved: true}
+	whitePawn := &Pawn{color: WHITE, moveCount: 1}
 	b4 := board3.Squares[ROW_4][COL_B]
 
 	blackKing3 := &King{color: BLACK}
@@ -685,7 +685,7 @@ func TestCastle(t *testing.T) {
 	checkedBlackSq := checkedBoard.Squares[ROW_8][COL_C]
 	checkedWhiteKing := &King{color: WHITE}
 	checkedBlackKing := &King{color: BLACK}
-	checkingWhiteFPawn := &Pawn{color: WHITE, moved: true}
+	checkingWhiteFPawn := &Pawn{color: WHITE, moveCount: 1}
 	checkedWhiteRook := &Rook{color: WHITE, CastleSq: checkedBoard.Squares[ROW_1][COL_D]}
 	checkedBlackRook := &Rook{color: BLACK, CastleSq: checkedBoard.Squares[ROW_8][COL_D]}
 
@@ -732,8 +732,8 @@ func TestCastle(t *testing.T) {
 	kingMovedBoard := New()
 	kingMovedWhiteSq := kingMovedBoard.Squares[ROW_1][COL_C]
 	kingMovedBlackSq := kingMovedBoard.Squares[ROW_8][COL_C]
-	kingMovedWhiteKing := &King{color: WHITE, moved: true}
-	kingMovedBlackKing := &King{color: BLACK, moved: true}
+	kingMovedWhiteKing := &King{color: WHITE, moveCount: 1}
+	kingMovedBlackKing := &King{color: BLACK, moveCount: 1}
 	kingMovedWhiteRook := &Rook{color: WHITE, CastleSq: kingMovedBoard.Squares[ROW_1][COL_D]}
 	kingMovedBlackRook := &Rook{color: BLACK, CastleSq: kingMovedBoard.Squares[ROW_8][COL_D]}
 	kingMovedWhitePawn := &Pawn{color: WHITE}
@@ -751,8 +751,8 @@ func TestCastle(t *testing.T) {
 	rookMovedBlackSq := rookMovedBoard.Squares[ROW_8][COL_G]
 	rookMovedWhiteKing := &King{color: WHITE}
 	rookMovedBlackKing := &King{color: BLACK}
-	rookMovedWhiteRook := &Rook{color: WHITE, moved: true, CastleSq: rookMovedBoard.Squares[ROW_1][COL_F]}
-	rookMovedBlackRook := &Rook{color: BLACK, moved: true, CastleSq: rookMovedBoard.Squares[ROW_8][COL_F]}
+	rookMovedWhiteRook := &Rook{color: WHITE, moveCount: 1, CastleSq: rookMovedBoard.Squares[ROW_1][COL_F]}
+	rookMovedBlackRook := &Rook{color: BLACK, moveCount: 1, CastleSq: rookMovedBoard.Squares[ROW_8][COL_F]}
 	rookMovedWhitePawn := &Pawn{color: WHITE}
 	rookMovedBlackPawn := &Pawn{color: BLACK}
 
@@ -980,7 +980,7 @@ func TestKingInCheck(t *testing.T) {
 	blackKing3 := &King{color: BLACK}
 	h8 := board3.Squares[ROW_8][COL_H]
 
-	blackPawn3 := &Pawn{color: BLACK, moved: true}
+	blackPawn3 := &Pawn{color: BLACK, moveCount: 1}
 	b2 := board3.Squares[ROW_2][COL_B]
 
 	blackQueen3 := &Queen{color: BLACK}
@@ -1077,11 +1077,17 @@ func TestKingMove(t *testing.T) {
 	board.SetPiece(whiteRook, f3)
 	board.SetPiece(blackBishop, e7)
 
+	board2 := New()
+	board2.SetupFromFen("6k1/6B1/3q4/8/8/6Q1/7K/8")
+	board2.Evaluate(BLACK)
+
 	tests := []struct {
+		board    *Board
 		input    *Move
 		expected string
 	}{
 		{
+			board,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteKing,
@@ -1091,6 +1097,7 @@ func TestKingMove(t *testing.T) {
 			"KING: D3 -> E4 is not a valid move",
 		},
 		{
+			board,
 			&Move{
 				Turn:  BLACK,
 				Piece: blackKing,
@@ -1100,6 +1107,7 @@ func TestKingMove(t *testing.T) {
 			"KING: E5 -> E4 is not a valid move",
 		},
 		{
+			board,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteKing,
@@ -1109,6 +1117,7 @@ func TestKingMove(t *testing.T) {
 			"KING: D3 -> C4",
 		},
 		{
+			board,
 			&Move{
 				Turn:  BLACK,
 				Piece: blackKing,
@@ -1118,6 +1127,7 @@ func TestKingMove(t *testing.T) {
 			"KING: E5 -> E4",
 		},
 		{
+			board,
 			&Move{
 				Turn:  BLACK,
 				Piece: blackKing,
@@ -1127,6 +1137,7 @@ func TestKingMove(t *testing.T) {
 			"KING TAKES ROOK: E4 -> F3",
 		},
 		{
+			board,
 			&Move{
 				Turn:  WHITE,
 				Piece: whiteKing,
@@ -1135,10 +1146,20 @@ func TestKingMove(t *testing.T) {
 			},
 			"KING: C4 -> C5 is not a valid move",
 		},
+		{
+			board2,
+			&Move{
+				Turn:  BLACK,
+				Piece: board2.GetSquare(ROW_8, COL_G).Piece,
+				From:  board2.GetSquare(ROW_8, COL_G),
+				To:    board2.GetSquare(ROW_7, COL_G),
+			},
+			"KING: G8 -> G7 is not a valid move",
+		},
 	}
 
 	for _, tt := range tests {
-		board.Evaluate(tt.input.Turn)
+		tt.board.Evaluate(tt.input.Turn)
 		if tt.input.Piece.Type() != KING {
 			t.Fatalf("Piece should be a %s. Got %s", KING, tt.input.Piece.Type())
 		}
@@ -1373,7 +1394,7 @@ func TestMoveRook(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		board.Evaluate(tt.input.Turn)
+		board.Evaluate(ENEMY[tt.input.Turn])
 		if tt.input.Piece.Type() != ROOK {
 			t.Fatalf("Piece should be a %s. Got %s", ROOK, tt.input.Piece.Type())
 		}

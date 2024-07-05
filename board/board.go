@@ -35,16 +35,18 @@ var ENEMY = map[string]string{
 }
 
 type Board struct {
-	Squares     [][]*Square
-	Moves       []*Move
-	WhitePieces map[Piece]bool
-	BlackPieces map[Piece]bool
-	Checkmate   bool
-	Stalemate   bool
-	Draw        bool
-	Value       float64
-	Fens        map[string]int
-	Receipts    []string
+	Squares        [][]*Square
+	Moves          []*Move
+	WhitePieces    map[Piece]bool
+	BlackPieces    map[Piece]bool
+	PromotedPawns  []*Pawn
+	CapturedPieces []Piece
+	Checkmate      bool
+	Stalemate      bool
+	Draw           bool
+	Value          float64
+	Fens           map[string]int
+	Receipts       []string
 }
 
 func New() *Board {
@@ -83,22 +85,22 @@ func (b *Board) Copy() *Board {
 			ogSq := b.Squares[i][j]
 			switch piece := ogSq.Piece.(type) {
 			case *Pawn:
-				pawn := &Pawn{color: piece.color, value: piece.value, moved: piece.HasMoved()}
+				pawn := &Pawn{color: piece.color, value: piece.value, moveCount: piece.moveCount}
 				copy.SetPiece(pawn, sq)
 			case *Knight:
-				knight := &Knight{color: piece.color, value: piece.value, moved: piece.HasMoved()}
+				knight := &Knight{color: piece.color, value: piece.value, moveCount: piece.moveCount}
 				copy.SetPiece(knight, sq)
 			case *Bishop:
-				bishop := &Bishop{color: piece.color, value: piece.value, moved: piece.HasMoved()}
+				bishop := &Bishop{color: piece.color, value: piece.value, moveCount: piece.moveCount}
 				copy.SetPiece(bishop, sq)
 			case *Rook:
-				rook := &Rook{color: piece.color, value: piece.value, moved: piece.HasMoved()}
+				rook := &Rook{color: piece.color, value: piece.value, moveCount: piece.moveCount}
 				copy.SetPiece(rook, sq)
 			case *Queen:
-				queen := &Queen{color: piece.color, value: piece.value, moved: piece.HasMoved()}
+				queen := &Queen{color: piece.color, value: piece.value, moveCount: piece.moveCount}
 				copy.SetPiece(queen, sq)
 			case *King:
-				king := &King{color: piece.color, value: piece.value, moved: piece.HasMoved()}
+				king := &King{color: piece.color, value: piece.value, moveCount: piece.moveCount}
 				copy.SetPiece(king, sq)
 			default:
 				copy.SetPiece(&Null{}, sq)
@@ -110,6 +112,9 @@ func (b *Board) Copy() *Board {
 	}
 	for fen, count := range b.Fens {
 		copy.Fens[fen] = count
+	}
+	for _, move := range b.Moves {
+		copy.Moves = append(copy.Moves, move)
 	}
 	return copy
 }
@@ -310,13 +315,13 @@ func (b *Board) SetupFromFen(fen string) {
 				case 'p':
 					p := &Pawn{color: BLACK, value: -1.00}
 					if sq.Row != ROW_7 {
-						p.moved = true
+						p.moveCount = 1
 					}
 					b.SetPiece(p, sq)
 				case 'P':
 					p := &Pawn{color: WHITE, value: 1.00}
 					if sq.Row != ROW_2 {
-						p.moved = true
+						p.moveCount = 1
 					}
 					b.SetPiece(p, sq)
 				case 'n':
@@ -332,10 +337,10 @@ func (b *Board) SetupFromFen(fen string) {
 					bish := &Bishop{color: WHITE, value: 3.33}
 					b.SetPiece(bish, sq)
 				case 'r':
-					r := &Rook{color: BLACK, value: -5.63, moved: true}
+					r := &Rook{color: BLACK, value: -5.63, moveCount: 1}
 					b.SetPiece(r, sq)
 				case 'R':
-					r := &Rook{color: WHITE, value: 5.63, moved: true}
+					r := &Rook{color: WHITE, value: 5.63, moveCount: 1}
 					b.SetPiece(r, sq)
 				case 'q':
 					q := &Queen{color: BLACK, value: -9.5}
@@ -637,41 +642,41 @@ func (b *Board) SetPiece(piece Piece, square *Square) {
 
 func (b *Board) SetupPieces() {
 	var whiteStartSquares = map[string]Piece{
-		"A2": &Pawn{value: 1.0},
-		"B2": &Pawn{value: 1.0},
-		"C2": &Pawn{value: 1.0},
-		"D2": &Pawn{value: 1.0},
-		"E2": &Pawn{value: 1.0},
-		"F2": &Pawn{value: 1.0},
-		"G2": &Pawn{value: 1.0},
-		"H2": &Pawn{value: 1.0},
-		"B1": &Knight{value: 3.05},
-		"G1": &Knight{value: 3.05},
-		"C1": &Bishop{value: 3.33},
-		"F1": &Bishop{value: 3.33},
-		"A1": &Rook{value: 5.63, CastleSq: b.Squares[ROW_1][COL_D]},
-		"H1": &Rook{value: 5.63, CastleSq: b.Squares[ROW_1][COL_F]},
-		"D1": &Queen{value: 9.5},
-		"E1": &King{value: 99.9},
+		"A2": &Pawn{value: 1.0, moveCount: 0},
+		"B2": &Pawn{value: 1.0, moveCount: 0},
+		"C2": &Pawn{value: 1.0, moveCount: 0},
+		"D2": &Pawn{value: 1.0, moveCount: 0},
+		"E2": &Pawn{value: 1.0, moveCount: 0},
+		"F2": &Pawn{value: 1.0, moveCount: 0},
+		"G2": &Pawn{value: 1.0, moveCount: 0},
+		"H2": &Pawn{value: 1.0, moveCount: 0},
+		"B1": &Knight{value: 3.05, moveCount: 0},
+		"G1": &Knight{value: 3.05, moveCount: 0},
+		"C1": &Bishop{value: 3.33, moveCount: 0},
+		"F1": &Bishop{value: 3.33, moveCount: 0},
+		"A1": &Rook{value: 5.63, CastleSq: b.Squares[ROW_1][COL_D], moveCount: 0},
+		"H1": &Rook{value: 5.63, CastleSq: b.Squares[ROW_1][COL_F], moveCount: 0},
+		"D1": &Queen{value: 9.5, moveCount: 0},
+		"E1": &King{value: 99.9, moveCount: 0},
 	}
 
 	var blackStartSquares = map[string]Piece{
-		"A7": &Pawn{value: -1.0},
-		"B7": &Pawn{value: -1.0},
-		"C7": &Pawn{value: -1.0},
-		"D7": &Pawn{value: -1.0},
-		"E7": &Pawn{value: -1.0},
-		"F7": &Pawn{value: -1.0},
-		"G7": &Pawn{value: -1.0},
-		"H7": &Pawn{value: -1.0},
-		"B8": &Knight{value: -3.05},
-		"G8": &Knight{value: -3.05},
-		"C8": &Bishop{value: -3.33},
-		"F8": &Bishop{value: -3.33},
-		"A8": &Rook{value: -5.63, CastleSq: b.Squares[ROW_8][COL_D]},
-		"H8": &Rook{value: -5.63, CastleSq: b.Squares[ROW_8][COL_F]},
-		"D8": &Queen{value: -9.5},
-		"E8": &King{value: -99.9},
+		"A7": &Pawn{value: -1.0, moveCount: 0},
+		"B7": &Pawn{value: -1.0, moveCount: 0},
+		"C7": &Pawn{value: -1.0, moveCount: 0},
+		"D7": &Pawn{value: -1.0, moveCount: 0},
+		"E7": &Pawn{value: -1.0, moveCount: 0},
+		"F7": &Pawn{value: -1.0, moveCount: 0},
+		"G7": &Pawn{value: -1.0, moveCount: 0},
+		"H7": &Pawn{value: -1.0, moveCount: 0},
+		"B8": &Knight{value: -3.05, moveCount: 0},
+		"G8": &Knight{value: -3.05, moveCount: 0},
+		"C8": &Bishop{value: -3.33, moveCount: 0},
+		"F8": &Bishop{value: -3.33, moveCount: 0},
+		"A8": &Rook{value: -5.63, CastleSq: b.Squares[ROW_8][COL_D], moveCount: 0},
+		"H8": &Rook{value: -5.63, CastleSq: b.Squares[ROW_8][COL_F], moveCount: 0},
+		"D8": &Queen{value: -9.5, moveCount: 0},
+		"E8": &King{value: -99.9, moveCount: 0},
 	}
 	whiteRows := [2]int{6, 7}
 	blackRows := [2]int{0, 1}
@@ -707,7 +712,7 @@ func (b *Board) SetupPieces() {
 }
 
 func (b *Board) RemovePiece(piece Piece, sq *Square) {
-	b.SetPiece(&Null{}, sq)
+	sq.SetPiece(&Null{})
 	if piece.Color() == WHITE {
 		delete(b.WhitePieces, piece)
 	} else {

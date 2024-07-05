@@ -16,6 +16,8 @@ const (
 	CHECK      = "CHECK"
 )
 
+var centerSquares = make(map[*Square]bool)
+
 type SqActivity string
 
 type Move struct {
@@ -40,7 +42,7 @@ func (b *Board) GetAllValidMoves(color string) []*Move {
 					From:  piece.Square(),
 					To:    sq,
 				}
-				move.SetValue(activity)
+				move.Evaluate(activity, b)
 
 				if move.Piece.Type() == PAWN && (move.To.Row == ROW_1 || move.To.Row == ROW_8) {
 					move.Promotion = &Queen{color: color}
@@ -55,19 +57,41 @@ func (b *Board) GetAllValidMoves(color string) []*Move {
 	return moves
 }
 
-func (m *Move) SetValue(activity SqActivity) {
+func (m *Move) Evaluate(activity SqActivity, board *Board) {
 	switch activity {
 	case CASTLE:
-		m.Value = float64(0.5)
+		m.Value = float64(0.9)
 	case CAPTURE:
 		m.Value = math.Abs(m.To.Piece.Value())
 	case EN_PASSANT:
 		m.Value = float64(1)
-	default:
-		if m.DevelopsMinorPiece() {
-			m.Value += float64(0.2)
+	}
+	if m.DevelopsMinorPiece() {
+		m.Value += float64(0.9)
+	}
+}
+
+func (m *Move) AddsCenterControl() {
+	switch m.Piece.(type) {
+	case *Pawn:
+
+	}
+}
+
+func (b *Board) getRooks(color string) []*Rook {
+	rooks := []*Rook{}
+	var pieces map[Piece]bool
+	if color == WHITE {
+		pieces = b.WhitePieces
+	} else {
+		pieces = b.BlackPieces
+	}
+	for piece := range pieces {
+		if rook, ok := piece.(*Rook); ok {
+			rooks = append(rooks, rook)
 		}
 	}
+	return rooks
 }
 
 func (m *Move) DevelopsMinorPiece() bool {
@@ -82,13 +106,6 @@ func isMinorPiece(piece Piece) bool {
 		return true
 	}
 	return false
-}
-
-func colorMultiplier(color string) float64 {
-	if color == WHITE {
-		return float64(1)
-	}
-	return float64(-1)
 }
 
 func (m *Move) Copy(simBoard *Board) *Move {
@@ -116,20 +133,10 @@ func (m *Move) IsValid(board *Board) bool {
 	return false
 }
 
-func (m *Move) IsSafe(board *Board) bool {
-	enemyGuards, _ := m.To.GetGuardsAndValue(ENEMY[m.Turn])
-	for _, guard := range enemyGuards {
-		if math.Abs(guard.Value()) < math.Abs(m.Piece.Value()) {
-			return false
-		}
-	}
-	return true
-}
-
 func (b *Board) MovePiece(move *Move) (string, *Error) {
 	receipt := ""
 	if move.IsValid(b) {
-		move.Piece.SetMoved()
+		move.Piece.IncrementMoveCount()
 
 		switch move.Type {
 		case FREE:
@@ -155,8 +162,143 @@ func (b *Board) MovePiece(move *Move) (string, *Error) {
 			return receipt, nil
 		}
 	}
-
 	return b.invalidMove(move)
+}
+
+func (b *Board) UndoMove() {
+	last := b.LastMove()
+	prevFen := b.Fen()
+	if last.Promotion != nil {
+		b.RemovePiece(last.Promotion, last.To)
+		b.SetPiece(last.Piece, last.From)
+	}
+	switch last.Type {
+	case FREE:
+		b.undoFreeMove(last)
+	case CAPTURE:
+		b.undoCaptureMove(last)
+	case EN_PASSANT:
+		b.undoEnPassant(last)
+	case CASTLE:
+		b.undoCastle(last)
+	}
+	last.Piece.DecrementMoveCount()
+	b.resetCheck(last.Turn)
+	b.Checkmate = false
+	b.Stalemate = false
+	b.Draw = false
+	b.removeLastReceipt()
+	b.removeLastFen(prevFen)
+	b.removeLastMove()
+	b.Evaluate(ENEMY[last.Turn])
+}
+
+func (b *Board) pawnPromoted(last *Move) bool {
+	return last.Piece.Type() == PAWN && (last.To.Row == ROW_1 || last.To.Row == ROW_8)
+}
+
+func (b *Board) undoFreeMove(move *Move) {
+	move.From.SetPiece(move.Piece)
+	move.Piece.SetSquare(move.From)
+	move.To.SetPiece(&Null{})
+}
+
+func (b *Board) undoCaptureMove(move *Move) {
+	move.From.SetPiece(move.Piece)
+	move.Piece.SetSquare(move.From)
+
+	captured := b.CapturedPieces[len(b.CapturedPieces)-1]
+	b.SetPiece(captured, move.To)
+
+	if len(b.CapturedPieces) == 1 {
+		b.CapturedPieces = []Piece{}
+		return
+	}
+	b.CapturedPieces = b.CapturedPieces[:len(b.CapturedPieces)-1]
+}
+
+func (b *Board) undoEnPassant(move *Move) {
+	move.To.SetPiece(&Null{})
+	move.From.SetPiece(move.Piece)
+	move.Piece.SetSquare(move.From)
+
+	captured := b.CapturedPieces[len(b.CapturedPieces)-1]
+	b.SetPiece(captured, captured.Square())
+
+	if len(b.CapturedPieces) == 1 {
+		b.CapturedPieces = []Piece{}
+		return
+	}
+	b.CapturedPieces = b.CapturedPieces[:len(b.CapturedPieces)-1]
+}
+
+func (b *Board) undoCastle(move *Move) {
+	move.From.SetPiece(move.Piece)
+	move.Piece.SetSquare(move.From)
+	move.To.SetPiece(&Null{})
+
+	b.resetCastledRook(move)
+}
+
+func (b *Board) removeLastMove() {
+	if len(b.Moves) == 1 {
+		b.Moves = []*Move{}
+		return
+	}
+	b.Moves = b.Moves[:len(b.Moves)-1]
+}
+
+func (b *Board) removeLastFen(prevFen string) {
+	if b.Fens[prevFen] < 2 {
+		delete(b.Fens, prevFen)
+	} else {
+		b.Fens[prevFen]--
+	}
+}
+
+func (b *Board) removeLastReceipt() {
+	if len(b.Receipts) == 1 {
+		b.Receipts = []string{}
+		return
+	}
+	b.Receipts = b.Receipts[:len(b.Receipts)-1]
+}
+
+func (b *Board) resetCastledRook(last *Move) {
+	switch last.To.Name {
+	case "G1":
+		f1 := b.GetSquare(ROW_1, COL_F)
+		rook := f1.Piece
+		rook.SetMoveCount(0)
+		h1 := b.GetSquare(ROW_1, COL_H)
+		h1.SetPiece(rook)
+		rook.SetSquare(h1)
+		f1.SetPiece(&Null{})
+	case "C1":
+		d1 := b.GetSquare(ROW_1, COL_D)
+		rook := d1.Piece
+		rook.SetMoveCount(0)
+		a1 := b.GetSquare(ROW_1, COL_A)
+		a1.SetPiece(rook)
+		rook.SetSquare(a1)
+		d1.SetPiece(&Null{})
+	case "G8":
+		f8 := b.GetSquare(ROW_8, COL_F)
+		rook := f8.Piece
+		rook.SetMoveCount(0)
+		h8 := b.GetSquare(ROW_8, COL_H)
+		h8.SetPiece(rook)
+		rook.SetSquare(h8)
+		f8.SetPiece(&Null{})
+	case "C8":
+		d8 := b.GetSquare(ROW_8, COL_D)
+		rook := d8.Piece
+		rook.SetMoveCount(0)
+		a8 := b.GetSquare(ROW_8, COL_A)
+		a8.SetPiece(rook)
+		rook.SetSquare(a8)
+		d8.SetPiece(&Null{})
+	}
 }
 
 func (b *Board) addFen(fen string) {
@@ -202,6 +344,7 @@ func (b *Board) executeCaptureMove(move *Move) string {
 		move.To.Name,
 	)
 
+	b.CapturedPieces = append(b.CapturedPieces, capturedPiece)
 	b.RemovePiece(capturedPiece, move.To)
 
 	if move.Piece.Type() == PAWN && (move.To.Row == ROW_8 || move.To.Row == ROW_1) {
@@ -222,6 +365,7 @@ func (b *Board) executePawnPromotion(move *Move, receipt string) string {
 	queen := &Queen{color: move.Turn}
 	queen.SetValue()
 	b.SetPiece(queen, move.To)
+	move.Promotion = queen
 	b.Moves = append(b.Moves, move)
 
 	receipt += fmt.Sprintf(" (PROMOTION: QUEEN)")
@@ -232,6 +376,7 @@ func (b *Board) executePawnPromotion(move *Move, receipt string) string {
 func (b *Board) executeEnPassantMove(move *Move) string {
 	captureSq := b.Squares[move.Piece.Square().Row][move.To.Column]
 	capturedPiece := captureSq.Piece
+	b.CapturedPieces = append(b.CapturedPieces, capturedPiece)
 	b.RemovePiece(capturedPiece, captureSq)
 
 	move.To.SetPiece(move.Piece)
@@ -294,9 +439,7 @@ func (b *Board) RandomMove(color string) *Move {
 	valids := b.GetAllValidMoves(color)
 	for {
 		randIdx := rand.Intn(len(valids))
-		cand := valids[randIdx]
-		if cand.IsSafe(b) {
-			return cand
-		}
+		return valids[randIdx]
+
 	}
 }

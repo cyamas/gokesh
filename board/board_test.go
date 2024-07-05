@@ -4,6 +4,151 @@ import (
 	"testing"
 )
 
+func TestUndoMove(t *testing.T) {
+	testNumber := 1
+	// FREE MOVE
+	board1 := New()
+	board1.SetupPieces()
+	e2_1 := board1.GetSquare(ROW_2, COL_E)
+	e4_1 := board1.GetSquare(ROW_4, COL_E)
+
+	//PAWN PROMOTION
+	board2 := New()
+	board2.SetupFromFen("8/pp2P3/8/3k2p1/8/2P3P1/P5P1/5K2")
+	e7_2 := board2.GetSquare(ROW_7, COL_E)
+	e8_2 := board2.GetSquare(ROW_8, COL_E)
+
+	//CAPTURE
+	board3 := New()
+	board3.SetupFromFen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR")
+	e4_3 := board3.GetSquare(ROW_4, COL_E)
+	d5_3 := board3.GetSquare(ROW_5, COL_D)
+
+	//CASTLE
+	board4 := New()
+	board4.SetupFromFen("rnbqkbnr/pp3ppp/2p1p3/3p4/4P3/5N2/PPPPBPPP/RNBQK2R")
+	e1_4 := board4.GetSquare(ROW_1, COL_E)
+	g1_4 := board4.GetSquare(ROW_1, COL_G)
+
+	whiteKing4 := board4.GetKing(WHITE)
+	whiteHRook4 := board4.GetSquare(ROW_1, COL_H).Piece
+	whiteKing4.SetMoveCount(0)
+	whiteHRook4.SetMoveCount(0)
+
+	//EN_PASSANT
+	board5 := New()
+	board5.SetupFromFen("rnbqkbnr/pp1ppppp/2p5/4P3/8/8/PPPP1PPP/RNBQKBNR")
+	e5_5 := board5.GetSquare(ROW_5, COL_E)
+	d6_5 := board5.GetSquare(ROW_6, COL_D)
+	d7_5 := board5.GetSquare(ROW_7, COL_D)
+	d5_5 := board5.GetSquare(ROW_5, COL_D)
+	board5.Evaluate(WHITE)
+
+	enPassantSetupMove := &Move{
+		Turn:  BLACK,
+		Piece: d7_5.Piece,
+		From:  d7_5,
+		To:    d5_5,
+	}
+	board5.MovePiece(enPassantSetupMove)
+
+	tests := []struct {
+		board    *Board
+		input    *Move
+		expected string
+	}{
+		{
+			board1,
+			&Move{
+				Turn:  WHITE,
+				Piece: e2_1.Piece,
+				From:  e2_1,
+				To:    e4_1,
+			},
+			"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR",
+		},
+		{
+			board2,
+			&Move{
+				Turn:  WHITE,
+				Piece: e7_2.Piece,
+				From:  e7_2,
+				To:    e8_2,
+			},
+			"8/pp2P3/8/3k2p1/8/2P3P1/P5P1/5K2",
+		},
+		{
+			board3,
+			&Move{
+				Turn:  WHITE,
+				Piece: e4_3.Piece,
+				From:  e4_3,
+				To:    d5_3,
+			},
+			"rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR",
+		},
+		{
+			board4,
+			&Move{
+				Turn:  WHITE,
+				Piece: e1_4.Piece,
+				From:  e1_4,
+				To:    g1_4,
+			},
+			"rnbqkbnr/pp3ppp/2p1p3/3p4/4P3/5N2/PPPPBPPP/RNBQK2R",
+		},
+		{
+			board5,
+			&Move{
+				Turn:  WHITE,
+				Piece: e5_5.Piece,
+				From:  e5_5,
+				To:    d6_5,
+			},
+			"rnbqkbnr/pp2pppp/2p5/3pP3/8/8/PPPP1PPP/RNBQKBNR",
+		},
+	}
+	for _, tt := range tests {
+		tt.board.Evaluate(ENEMY[tt.input.Turn])
+		ogValids := tt.board.GetAllValidMoves(tt.input.Turn)
+		lenOGWhitePieces := len(tt.board.WhitePieces)
+		lenOGBlackPieces := len(tt.board.BlackPieces)
+		ogBoard := tt.board.Copy()
+		tt.board.MovePiece(tt.input)
+		tt.board.UndoMove()
+		valids := tt.board.GetAllValidMoves(tt.input.Turn)
+		for r, row := range tt.board.Squares {
+			for c, sq := range row {
+				ogPiece := ogBoard.Squares[r][c].Piece.Type()
+				piece := tt.board.Squares[r][c].Piece.Type()
+				if ogPiece != piece {
+					t.Fatalf("Square %s should have piece %s. Got %s", sq.Name, ogPiece, piece)
+				}
+			}
+		}
+		if len(ogValids) != len(valids) {
+			t.Fatalf("Len Valid moves should be %d. Got %d", len(ogValids), len(valids))
+		}
+		fen := tt.board.Fen()
+		if fen != tt.expected {
+			t.Fatalf("fen should be %s. got %s", tt.expected, fen)
+		}
+		if len(ogBoard.Moves) != len(tt.board.Moves) {
+			t.Fatalf("len board.Moves should be %d. Got %d", len(ogBoard.Moves), len(tt.board.Moves))
+		}
+		if len(ogBoard.Fens) != len(tt.board.Fens) {
+			t.Fatalf("len Fens should be %d. Got %d", len(ogBoard.Fens), len(tt.board.Fens))
+		}
+		if len(tt.board.WhitePieces) != lenOGWhitePieces {
+			t.Fatalf("len WhitePieces should be %d. Got %d", lenOGWhitePieces, len(tt.board.WhitePieces))
+		}
+		if len(tt.board.BlackPieces) != lenOGBlackPieces {
+			t.Fatalf("len BlackPieces should be %d. Got %d", lenOGBlackPieces, len(tt.board.BlackPieces))
+		}
+		testNumber++
+	}
+}
+
 func TestSetupFromFen(t *testing.T) {
 	board1 := New()
 	board2 := New()
@@ -36,90 +181,6 @@ func TestSetupFromFen(t *testing.T) {
 		fen := tt.board.Fen()
 		if fen != tt.expected {
 			t.Fatalf("Fen should be %s. Got %s", tt.expected, fen)
-		}
-	}
-}
-
-func TestMoveIsSafe(t *testing.T) {
-	board := New()
-
-	e8 := board.Squares[ROW_8][COL_E]
-	blackKing := &King{color: BLACK}
-
-	e1 := board.Squares[ROW_1][COL_E]
-	whiteKing := &King{color: WHITE}
-
-	e5 := board.Squares[ROW_5][COL_E]
-	whiteEpawn := &Pawn{color: WHITE, moved: true, value: 1.00}
-
-	d5 := board.Squares[ROW_5][COL_D]
-	blackDPawn := &Pawn{color: BLACK, moved: true, value: -1.00}
-
-	f1 := board.Squares[ROW_1][COL_F]
-	whiteBishop := &Bishop{color: WHITE, value: 3.33}
-
-	f8 := board.Squares[ROW_8][COL_F]
-	blackBishop := &Bishop{color: BLACK, value: -3.33}
-
-	board.SetPiece(whiteKing, e1)
-	board.SetPiece(blackKing, e8)
-	board.SetPiece(whiteEpawn, e5)
-	board.SetPiece(blackDPawn, d5)
-	board.SetPiece(whiteBishop, f1)
-	board.SetPiece(blackBishop, f8)
-
-	tests := []struct {
-		id       int
-		input    *Move
-		expected bool
-	}{
-		{
-			1,
-			&Move{
-				Turn:  WHITE,
-				Piece: whiteBishop,
-				From:  f1,
-				To:    board.Squares[ROW_4][COL_C],
-			},
-			false,
-		},
-		{
-			2,
-			&Move{
-				Turn:  WHITE,
-				Piece: whiteBishop,
-				From:  f1,
-				To:    board.Squares[ROW_3][COL_D],
-			},
-			true,
-		},
-		{
-			3,
-			&Move{
-				Turn:  BLACK,
-				Piece: blackBishop,
-				From:  f8,
-				To:    board.Squares[ROW_6][COL_D],
-			},
-			false,
-		},
-		{
-			4,
-			&Move{
-				Turn:  BLACK,
-				Piece: blackBishop,
-				From:  f8,
-				To:    board.Squares[ROW_5][COL_C],
-			},
-			true,
-		},
-	}
-
-	for _, tt := range tests {
-		board.Evaluate(ENEMY[tt.input.Turn])
-		result := tt.input.IsSafe(board)
-		if result != tt.expected {
-			t.Fatalf("Test %d: Move should be %t. Got %t", tt.id, tt.expected, result)
 		}
 	}
 }
